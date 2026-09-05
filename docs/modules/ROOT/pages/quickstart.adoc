@@ -1,40 +1,28 @@
 = Run it
 
-A fresh installation needs Git, Docker with Compose, and the Go version
-declared in {source-tree}/go.mod[`go.mod`]. From a checkout of
-{source-repo}[the repository]:
+One command, with Go installed and nothing else:
 
 [source,sh]
 ----
-git clone https://github.com/septagon-oss/platformkit && cd platformkit
-scripts/start.sh
+go run github.com/septagon-oss/platformkit/apps/platformkit@latest start
 ----
 
-{source-tree}/scripts/start.sh[`scripts/start.sh`] starts local PostgreSQL and
-NATS, creates `config.yaml` from
-{source-tree}/config.example.yaml[`config.example.yaml`] if it is missing,
-migrates the configured database, bootstraps the first tenant and
-administrator, and serves the application. It preserves existing configuration
-and refuses to bootstrap an installation that already has a tenant, so running
-it twice is running it once. The generated administrator password is printed
-once; keep it private.
+`start` runs its own PostgreSQL 16 — downloaded once into your user cache, its
+data under `./data` in the directory you ran it from — creates the application
+role, migrates, bootstraps the first tenant and administrator when there is
+none, and serves on `:8080`. The generated administrator password is printed
+once; keep it private. A second `start` in the same directory finds the tenant
+and serves it again. Ctrl+C stops the application and its database.
 
 Then open http://platformkit.localhost:8080/admin/login. The request host
 selects the tenant, so use `platformkit.localhost` and not `localhost` or an
 arbitrary alias. The component gallery is at `/admin/_gallery`.
 
-== Setup without serving
-
-[source,sh]
-----
-scripts/start.sh --no-run
-----
-
-prints the launch command instead of running it. That command carries the
-environment overrides for nondefault ports; `make run` alone does not translate
-Compose port settings into configuration. Set `PLATFORMKIT_PG_PORT` and
-`PLATFORMKIT_NATS_PORT` when the defaults collide with another stack, and check
-`docker compose ps` before starting a second one.
+`--data` moves the data directory and `--addr` the listening address. The
+source is {source-tree}/apps/platformkit/start.go[`apps/platformkit/start.go`];
+what it does not need is NATS, because the combined role carries events in
+memory. A deployment never uses `start`: it has a `config.yaml` and a database
+of its own, and uses `run`.
 
 == What you are looking at
 
@@ -57,11 +45,12 @@ make up     # Postgres and NATS, waiting for both
 make run    # the application, on config.yaml
 ----
 
-`make run` creates `config.yaml` from the example when it is missing and never
-overwrites an edited one. A loader that finds no configuration says where to
-get one rather than what the file system saw. The first tenant still comes
-from `platformkit bootstrap`, which `scripts/start.sh` runs for you; see
-{source-tree}/Makefile[the Makefile] for the full list of targets.
+`make run` creates `config.yaml` from
+{source-tree}/config.example.yaml[`config.example.yaml`] when it is missing
+and never overwrites an edited one. A loader that finds no configuration says
+where to get one rather than what the file system saw. The first tenant comes
+from `platformkit bootstrap`; see {source-tree}/Makefile[the Makefile] for the
+full list of targets.
 
 == Verify a change
 

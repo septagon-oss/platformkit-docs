@@ -44,7 +44,7 @@ the native shell, which reads the same resources as JSON.
 | design tokens and the two themes, as struct literals
 
 | `apps/`
-| `platformkit`, the reference binary: `run`, `bootstrap`, `--role web{vbar}worker{vbar}all`
+| `platformkit`, the reference binary: `start` (its own database, one command), `run` with `--role web{vbar}worker{vbar}all`, `bootstrap`
 
 | `tools/`
 | `locbudget`, the line-budget ratchet
@@ -53,7 +53,7 @@ the native shell, which reads the same resources as JSON.
 | the foundation schema; each module carries its own SQL
 
 | `deploy/`
-| the Dockerfile and the Postgres bootstrap
+| the Dockerfile
 
 | `docs/adr/`
 | the decisions, one number each
