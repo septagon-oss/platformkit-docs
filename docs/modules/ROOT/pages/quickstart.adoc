@@ -49,6 +49,20 @@ Compose port settings into configuration. Set `PLATFORMKIT_PG_PORT` and
 * `GET /health` and `GET /ready` are the probes. `/openapi.json` exists only
   when `server.docs` is enabled in `config.yaml`, which the example leaves off.
 
+== The development loop
+
+[source,sh]
+----
+make up     # Postgres and NATS, waiting for both
+make run    # the application, on config.yaml
+----
+
+`make run` creates `config.yaml` from the example when it is missing and never
+overwrites an edited one. A loader that finds no configuration says where to
+get one rather than what the file system saw. The first tenant still comes
+from `platformkit bootstrap`, which `scripts/start.sh` runs for you; see
+{source-tree}/Makefile[the Makefile] for the full list of targets.
+
 == Verify a change
 
 [source,sh]
