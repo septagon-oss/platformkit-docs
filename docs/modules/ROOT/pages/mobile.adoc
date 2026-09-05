@@ -1,0 +1,70 @@
+= The native shell
+
+{mobile-repo}[`platformkit-mobile`] is an Expo application that signs in against
+`POST /api/v1/auth/login`, reads `GET /api/v1/admin/resources`, and generates a
+list, a detail and a form screen for every resource the caller may reach — the
+same rule the web shell follows. Custom screens are renderer packs: a plain
+object mapping `module/entity` to components, passed once at the composition
+root. Nothing registers itself.
+
+== The seam
+
+`screens.Describe` in the public repository answers with the resources the
+caller may read, each with its module, entity, API path, the schema its
+screens derive from, the fields a command owns, and whether this caller may
+write it. An unreadable resource is not in the document at all. The golden file
+{source-tree}/ui/screens/testdata/catalog.json[`ui/screens/testdata/catalog.json`]
+is that document for a fixture entity; the shell carries a byte copy and its
+parser test reads it, so a change to the seam the shell cannot parse fails
+there.
+
+The session is the auth module's cookie. The shell keeps the `Set-Cookie` value
+it was given and sends it back as `Cookie`; the kernel's CSRF rule accepts a
+caller that presents neither `Sec-Fetch-Site` nor `Origin`, because a caller
+that is not a browser presents what it presents deliberately.
+
+== The shape
+
+[cols="1,3"]
+|===
+| Directory | Holds
+
+| `src/core/`
+| The catalog types and a validator that names what is wrong; `derive.ts`,
+  which restates the web generator's rules — the first writable string is the
+  row's name, `hide:list` hides a column, read-only fields never appear on a
+  form, immutable fields are read-only on edit and absent on create, an enum is
+  a picker, a bool a switch; and a reducer for the session lifecycle. It
+  imports nothing from React or React Native and is tested in plain Node.
+
+| `src/effects/`
+| Fetch with the kept cookie — login, catalog, list, get, create, patch,
+  delete on the entry's own path — and the secure store.
+
+| `src/screens/`
+| Sign-in, home, and the generated list, detail and form as components of
+  props.
+
+| `src/renderers.ts`, `src/shell.tsx`, `src/route.tsx`
+| The renderer-pack type, the composition root's context, and the one
+  component every resource route delegates to.
+
+| `app/`
+| Expo Router files that compose and render nothing of their own.
+|===
+
+== Running it
+
+[source,sh]
+----
+npm ci
+npm run check          # typecheck, lint, format, unit tests
+EXPO_PUBLIC_API_URL=http://platformkit.localhost:8080 npm start
+----
+
+== What is and is not proven
+
+`npm run check` is green and `expo export --platform web` produces a bundle.
+The shell has not yet run on a device or simulator, and cookie handling on iOS
+and Android against a live instance is unverified. Those are recorded as
+untested rather than assumed; the first device run will say.

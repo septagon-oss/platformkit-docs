@@ -1,0 +1,75 @@
+= Run it
+
+A fresh installation needs Git, Docker with Compose, and the Go version
+declared in {source-tree}/go.mod[`go.mod`]. From a checkout of
+{source-repo}[the repository]:
+
+[source,sh]
+----
+git clone https://github.com/septagon-oss/platformkit && cd platformkit
+scripts/start.sh
+----
+
+{source-tree}/scripts/start.sh[`scripts/start.sh`] starts local PostgreSQL and
+NATS, creates `config.yaml` from
+{source-tree}/config.example.yaml[`config.example.yaml`] if it is missing,
+migrates the configured database, bootstraps the first tenant and
+administrator, and serves the application. It preserves existing configuration
+and refuses to bootstrap an installation that already has a tenant, so running
+it twice is running it once. The generated administrator password is printed
+once; keep it private.
+
+Then open http://platformkit.localhost:8080/admin/login. The request host
+selects the tenant, so use `platformkit.localhost` and not `localhost` or an
+arbitrary alias. The component gallery is at `/admin/_gallery`.
+
+== Setup without serving
+
+[source,sh]
+----
+scripts/start.sh --no-run
+----
+
+prints the launch command instead of running it. That command carries the
+environment overrides for nondefault ports; `make run` alone does not translate
+Compose port settings into configuration. Set `PLATFORMKIT_PG_PORT` and
+`PLATFORMKIT_NATS_PORT` when the defaults collide with another stack, and check
+`docker compose ps` before starting a second one.
+
+== What you are looking at
+
+* `/admin` is the dashboard: one card per resource you may read, with its
+  count, and the instance's health.
+* Every entity a module registers has seven generated pages under
+  `/admin/<module>/<entities>`: list, detail, create form, edit form, the two
+  writes and delete. Nothing about them was written by hand; see
+  xref:ui.adoc[Components, pages and screens].
+* `GET /api/v1/admin/resources` is the same knowledge as JSON, for a shell that
+  is not a browser; see xref:mobile.adoc[The native shell].
+* `GET /health` and `GET /ready` are the probes. `/openapi.json` exists only
+  when `server.docs` is enabled in `config.yaml`, which the example leaves off.
+
+== Verify a change
+
+[source,sh]
+----
+make check
+----
+
+builds, vets and format-checks the Go, runs the tests against the real Postgres
+and NATS, and checks the source and package budgets, the import boundary and
+tenant-setting ownership. `make e2e` drives the admin shell with a browser and
+needs Node, npm, `psql`, `curl` and a Playwright-managed Chromium:
+
+[source,sh]
+----
+npm --prefix e2e ci
+npm --prefix e2e run install:browsers
+make e2e
+----
+
+The e2e script recreates a fixed `platformkit_e2e` database on the configured
+development server; it is disposable there and must not be run against anything
+else. `make down` removes the local Compose volumes as well as stopping the
+services: it is a data deletion, not a test step. The full list of targets is
+{source-tree}/Makefile[the Makefile].

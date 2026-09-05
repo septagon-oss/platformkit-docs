@@ -1,0 +1,38 @@
+= Releases
+
+The current release is {release-version}. Releases are tags on
+{source-repo}[the public repository]; each tag runs `make check` against the
+tagged tree, builds the image to `ghcr.io/septagon-oss/platformkit` with an
+SBOM, and publishes a GitHub release with generated notes and the image digest.
+{source-tree}/CHANGELOG.md[`CHANGELOG.md`] records what changed;
+{source-tree}/RELEASE.md[`RELEASE.md`] is the runbook.
+
+== What a tag means
+
+A tag is an owner's action after `make check` and `make e2e` are green on the
+commit and the ceilings in `loc-budget.json` have been re-ratcheted to the
+count rounded up to the next hundred. A successful build is not evidence of a
+deployed service; the image digest and the receiving environment are verified
+separately.
+
+== Consumers
+
+The private catalog and clients repositories pin the public module by tag.
+Between tags they may carry a `replace` directive to a sibling checkout, and
+the runbook's last section is the two commands that remove it once the tag
+exists. Migration version ranges are global across the three: the public
+repository numbers from 1, the catalog from 1001, clients from 2001.
+
+== The 0.x line
+
+The `platformkit` module path once held a CLI scaffolder, released through
+v0.15.1. It is superseded, not maintained, and kept reachable under the
+repository's `legacy-0.x` branch and `v0.x` tags so that forks of it diverge
+cleanly. The `pk-*` repositories that accompanied it are archived read-only;
+what survived of them is inside v1 (`ui/`, `design/`, `kit/problem`), with
+attribution in {source-tree}/NOTICE[`NOTICE`].
+
+== Reporting a vulnerability
+
+{source-tree}/SECURITY.md[`SECURITY.md`] names the private reporting path and
+the three areas the design puts its weight on.

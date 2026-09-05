@@ -1,0 +1,14 @@
+{
+  "name": "platformkit-docs",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "antora --fetch antora-playbook.yml",
+    "check": "antora --fetch --log-failure-level=warn antora-playbook.yml",
+    "serve": "npx --yes http-server build/site -p 5000 -c-1"
+  },
+  "devDependencies": {
+    "antora": "3.1.15"
+  }
+}

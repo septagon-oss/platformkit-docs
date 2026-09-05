@@ -1,0 +1,90 @@
+= Architecture
+
+The authoritative statement is {source-tree}/ARCHITECTURE.md[`ARCHITECTURE.md`]
+in the repository; the eleven decisions behind it are the
+xref:decisions.adoc[ADRs]. This page is the map.
+
+== How the pieces compose
+
+link:{attachmentsdir}/platformkit-composability.html[Open the interactive
+map^] — twelve nodes, the two repository boundaries, and three guided views: a
+client is configuration, one UI with three shells, and the schema seam. It was
+authored from the code on 2026-09-05 and checked at four desktop sizes.
+
+The main path runs left to right: a `client.yaml` names modules, a theme and
+hosts; `apps/flagship` (or `apps/platformkit` in the public repository)
+constructs `Module(Deps{...})` in dependency order; each module's
+`rest.Spec.Mount` registers five routes and one `httpx.Resource`; the kernel
+serves them under a tenant transaction against Postgres and relays events
+through the outbox to JetStream. Above it, `ui/components` and `ui/page` are the
+abstractions three shells compose: the admin module, a client's storefront, and
+the native shell, which reads the same resources as JSON.
+
+== Layout
+
+[cols="1,3"]
+|===
+| Directory | Holds
+
+| `kit/`
+| the kernel: `db`, `tenancy`, `config`, `problem`, `httpx`, `module`, `crud`,
+  `rest`, `events`, `jobs`, `health`, `limit`, `app`
+
+| `modules/`
+| business modules, each `contracts/` + `internal/` + `module.go`: tenant,
+  user, auth, admin, audit, notification, billing, content, site, file, task
+
+| `ui/`
+| typed components, the class builder and the CSS emitter, the browser
+  controllers, `page` (documents as values) and `screens` (screens generated
+  from schemas, and the resources catalog)
+
+| `design/`
+| design tokens and the two themes, as struct literals
+
+| `apps/`
+| `platformkit`, the reference binary: `run`, `bootstrap`, `--role web|worker|all`
+
+| `tools/`
+| `locbudget`, the line-budget ratchet
+
+| `migrations/`
+| the foundation schema; each module carries its own SQL
+
+| `deploy/`
+| the Dockerfile and the Postgres bootstrap
+
+| `docs/adr/`
+| the decisions, one number each
+|===
+
+== Limits
+
+Every bucket of source has a ceiling in
+{source-tree}/loc-budget.json[`loc-budget.json`], and the number of first-party
+packages linked into the binary has one in
+{source-tree}/packages-budget.json[`packages-budget.json`]. A ceiling is the
+count rounded up to the next hundred; a pull request that exceeds one fails;
+raising one is an owner commit with a written reason. The repository's
+`ARCHITECTURE.md` carries the snapshot at the last tag and explains why the
+file, not the document, is the source.
+
+== The browser half
+
+There is no CSS build, no node in the build and no framework. `ui/components`
+is forty-one functions of the form `Button(ButtonProps) g.Node`, each declaring
+the classes it can emit; `ui/style` resolves exactly those classes to rules
+against the custom properties `design` renders; `ui.Compose` folds the two, plus
+a consumer's own lists and rules, into one `Sheet` served from memory. htmx is
+the only third-party byte the browser runs, beside four controllers of a few
+dozen lines. Every response carries a content security policy with a
+per-request nonce. The detail is in xref:ui.adoc[Components, pages and
+screens].
+
+== The gates
+
+`make check` runs gates one to nine — build, vet and format, the test suite
+against real Postgres, the line and package budgets, the import boundary, the
+boot validation of authorization declarations, the tenant isolation test and
+the empty-database boot — and `make e2e` is gate ten, the browser. CI runs
+both. The list stops at ten; the table is in `ARCHITECTURE.md`.

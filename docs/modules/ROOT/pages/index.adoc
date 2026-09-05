@@ -1,0 +1,57 @@
+= What PlatformKit is
+
+image::logo.png[PlatformKit,96,float=right]
+
+PlatformKit is a Go foundation for composing multi-tenant SaaS applications,
+built as a reference architecture: about thirty thousand lines that demonstrate
+ten ideas once each, with the gates that keep them true running on every pull
+request.
+
+It brings together a small kernel, business modules that are plain Go packages,
+typed web components with a stylesheet that is a Go value, and an operator
+interface whose screens are generated from entity schemas. An application is a
+list of modules constructed in `main` with typed dependency structs; a client is
+configuration and assets on one image.
+
+The source of truth is the repository at {source-repo}. This site is the
+narrative that gets you to the right file there; when the two disagree, the
+repository is right.
+
+== The ten ideas
+
+The repository's {source-tree}/ARCHITECTURE.md[`ARCHITECTURE.md`] states them
+in full. In one line each:
+
+. Composition is a list: `apps/platformkit/modules.go` constructs every module
+  in dependency order, and the compiler checks the graph.
+. A module is three things: `contracts/`, `internal/` and `module.go`.
+. Cross-module dependencies are Go interfaces declared in the provider's
+  `contracts/`; a module's `internal/` cannot be imported.
+. Tenant isolation belongs to the database, through `FORCE ROW LEVEL SECURITY`
+  set per transaction, and to the type system, through `db.Tx[db.Tenant]` and
+  `db.Tx[db.System]`.
+. Authorization is declared beside every route and validated at boot.
+. Events leave through one transactional outbox to NATS JetStream.
+. Each capability owns its migration history; one runner applies them in
+  composition order.
+. Screens derive from schemas: `rest.Spec.Mount` registers a resource, and the
+  admin module generates seven pages from each one.
+. A client is configuration: one image, one binary with roles, differences in
+  configuration and assets only.
+. Claims need evidence: ten gates, and untested claims stay explicit.
+
+== Where to go next
+
+* xref:quickstart.adoc[Run it] — Postgres, NATS, one tenant and the
+  application, from a fresh checkout.
+* xref:architecture.adoc[Architecture] — the layout, the limits and the browser
+  half, and the interactive map of how the pieces compose.
+* xref:modules.adoc[Build a module] — the task module as the worked example.
+* xref:clients.adoc[A client is configuration] — how a product is assembled
+  from public, catalog and client modules.
+* xref:ui.adoc[Components, pages and screens] — the UI stack and the seam a
+  second shell reads.
+* xref:mobile.adoc[The native shell] — the Expo application that generates its
+  screens from the same seam.
+
+Questions go to the {community}[community discussions].

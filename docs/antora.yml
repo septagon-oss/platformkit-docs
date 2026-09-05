@@ -1,0 +1,9 @@
+name: platformkit
+title: PlatformKit
+version: '1.0'
+display_version: v1.0
+nav:
+  - modules/ROOT/nav.adoc
+asciidoc:
+  attributes:
+    release-version: v1.0.0

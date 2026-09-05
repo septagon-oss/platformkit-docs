@@ -1,0 +1,101 @@
+= Build a module
+
+A module is a business capability in three parts, and
+{source-tree}/modules/task[`modules/task`] is the exemplar every later module
+copied. Read it beside this page.
+
+[cols="1,3"]
+|===
+| Part | What it holds
+
+| `contracts/`
+| Everything another module, an application or a test may know: the entity,
+  the events it emits, the permission tokens, the `Service` interface, and a
+  `<name>test/` package with a fake and a conformance suite that both the fake
+  and the real implementation pass.
+
+| `internal/`
+| Every implementation. Nothing outside the module can import it; that is what
+  makes a consumer that compiles a consumer of a capability rather than of an
+  implementation.
+
+| `module.go`
+| The manifest: a `Deps` struct of typed dependencies and one `Module(Deps)`
+  function that returns a `module.Module`.
+|===
+
+== The entity is the whole surface
+
+{source-tree}/modules/task/contracts/task.go[`contracts/task.go`] declares
+`Task` as a struct embedding `crud.Base`, which contributes the id, the
+timestamps, the soft delete and the tenant column row-level security matches
+on. Its struct tags are read four ways at once:
+
+* `json` is the API;
+* `gorm` is the table;
+* `enum`, `validate`, `default` and `doc` are the schema a generated screen and
+  the OpenAPI document read, so a select exists because the struct says `enum`
+  and a control is required because it says `validate:"required"`;
+* `ui:"widget:textarea;hide:list"` is the one hint a screen takes: which control
+  to use, and which fields to keep off the list.
+
+A field whose Go type is outside `crud.FieldType`'s closed set is stored and
+serialised but appears on no screen and in no sort or filter.
+
+== The manifest composes, it does not wire
+
+{source-tree}/modules/task/module.go[`module.go`] declares one `rest.Spec`
+value — module, entity, path, the two permissions, soft delete, the `Immutable`
+fields a command owns — and returns a `module.Module` with its name,
+permissions, events, navigation entry, periodic jobs, subscriptions and a
+`Routes` function. `spec.Mount(api)` registers the five CRUD routes and one
+`httpx.Resource`; `internal.RegisterRoutes` adds the commands the generic five
+cannot express, such as assigning a task.
+
+Two rules are enforced at boot rather than remembered: every route declares its
+authorization, and every permission a route declares is one some module's
+manifest defines. A manifest that emits an event it did not promise, or
+subscribes to one nobody emits, refuses to start.
+
+== Depending on another module
+
+A consumer takes an interface declared in the provider's `contracts/` as a field
+of its `Deps` struct. The application supplies it in
+{source-tree}/apps/platformkit/modules.go[`apps/platformkit/modules.go`], where
+every module is constructed in dependency order and the compiler checks the
+graph. Gate six, {source-tree}/scripts/check_imports.sh[`scripts/check_imports.sh`],
+fails a build in which any package under one module imports another module's
+non-`contracts/` package.
+
+Where a module lower in the graph must be told something by one above it, the
+higher module hands it a function: the tenant module takes a role-seeding hook
+that the auth module owns. That edge is visible in one file and checked by the
+compiler; there is no implication table and no registry.
+
+== Migrations belong to the module
+
+A module carries its own SQL as an `fs.FS` in `Migrations`, numbered within the
+module. The kernel applies the foundation and each selected module's history in
+composition order, tracking every applied file by owner and revision and
+committing each file with its history row in one transaction. Files are
+`<version>_<name>.up.sql`; there are no down files, because a failed file rolls
+back and is retried. See
+xref:decisions.adoc[ADR 0011].
+
+== The recipe
+
+. Copy `modules/task`, rename the package and the entity, and delete what your
+  capability does not need.
+. Write `contracts/` first: the entity, the events, the permissions, the
+  `Service` interface, and the conformance cases in `<name>test/`. Make the fake
+  pass them.
+. Fill `internal/` until the real service passes the same cases against
+  Postgres.
+. Declare the `rest.Spec` and the manifest in `module.go`; add the module's SQL.
+. Add one line to the application's composition. The seven admin screens, the
+  navigation entry and the JSON catalog entry exist without further code.
+. Run `make check`.
+
+The public repository's `CONTRIBUTING.md` states the review criteria a module
+is held to: contracts before implementations, one implementation per business
+rule, and code that reads like the business.

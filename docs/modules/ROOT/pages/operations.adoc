@@ -1,0 +1,70 @@
+= Run it in production
+
+One image, one binary, `--role web|worker|all`. The reference repository ships
+the image; the private clients repository ships the chart and the cluster state
+that deploys it. Read
+{source-tree}/RELEASE.md[`RELEASE.md`] for the reviewed tag and image workflow
+and the clients repository's `deploy/README.md` for the chart.
+
+== Configuration
+
+{source-tree}/config.example.yaml[`config.example.yaml`] is the whole
+configuration surface; a key nothing reads does not belong in it. The blocks
+are `server` (address, public host, whether to serve the OpenAPI document, the
+read timeout), `database` (an application URL as a role subject to row-level
+security, and a migration URL as the owner), `nats`, `log`, `auth.oidc`,
+`mail`, `audit.retention_days` and `files`. Every key can be overridden from the
+environment as `PLATFORMKIT_<SECTION>_<KEY>`; secrets — the OIDC client secret,
+the mail password — belong there and not in the file.
+
+== Roles
+
+`--role web` serves HTTP. `--role worker` runs the outbox relay, the event
+subscriptions and the periodic jobs. `--role all` does both and is what a
+laptop runs. Every role applies pending migrations at start behind an advisory
+lock, so there is no migration job and no `--migrate-only`; the deployment shape
+that follows is a startup probe long enough for the ledger to apply, `maxSurge
+1` and `maxUnavailable 0`. Two worker replicas share one JetStream consumer
+through a deliver group, so scaling out does not duplicate handling.
+
+== The image
+
+`deploy/Dockerfile` builds `apps/platformkit` and runs it on a distroless base
+as an unprivileged user. `make image` builds it locally. The release workflow
+builds and publishes `ghcr.io/septagon-oss/platformkit` on a `v*` tag, with an
+SBOM, and moves `latest` only for a non-prerelease.
+
+== Probes and headers
+
+`GET /health` and `GET /ready` answer on the plain router, before tenant
+resolution, so a liveness probe does not depend on a database round trip.
+Every response carries `X-Frame-Options: DENY`, `Referrer-Policy` and
+`X-Content-Type-Options: nosniff`; every HTML response carries a content
+security policy with a per-request nonce, `base-uri 'none'` and
+`form-action 'self'`; HSTS is set when the public host is not local;
+authenticated HTML and private downloads are `Cache-Control: no-store`.
+Uploaded files are served as attachments unless their stored type is in a
+closed render-safe set, and never inline for HTML, SVG or any XML dialect.
+
+== Tenancy
+
+The host of a request selects the tenant. The application connects as a role
+with no superuser and no `BYPASSRLS`, every tenant table carries `FORCE ROW
+LEVEL SECURITY`, and the tenant is set per transaction, so a forgotten `WHERE
+tenant_id` returns nothing rather than another tenant's rows. Cross-tenant work
+— the tenant registry, hourly sweeps — runs under a `db.Tx[db.System]` that only
+the composition can hand out, so `grep SystemToken` in `apps/` lists every place
+the boundary is crossed on purpose. The operator's own tenant is the one the
+bootstrap creates; operator permissions are refused at every other tenant
+before the authorizer is asked.
+
+== Migrations
+
+Each capability owns its SQL under `migrations/<owner>/` as
+`<version>_<name>.up.sql`, numbered within the owner. One runner applies the
+foundation and each selected module's history in composition order, tracking
+every applied file by owner and revision, committing each file with its history
+row in one transaction. A failed file rolls back and is retried on the next
+start; applied files are immutable. There are no down files. The design is
+xref:decisions.adoc[ADR 0011]; the clients repository's operations notes
+describe recovery from a partially applied file on the older ledger.

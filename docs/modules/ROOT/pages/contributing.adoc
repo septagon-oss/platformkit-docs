@@ -1,0 +1,49 @@
+= Contributing
+
+The rules are in the repository: {source-tree}/CONTRIBUTING.md[`CONTRIBUTING.md`]
+for how a change is reviewed and {source-tree}/AGENTS.md[`AGENTS.md`] for the
+nine working rules, whether you are a person or a coding agent. This page is
+what they add up to.
+
+== The shape of a change
+
+A change lands in one repository, as one logical change, with `make check`
+green before the commit and real command output in the commit body. It removes
+the implementation it replaces in the same change; there is no legacy path kept
+for later. It adds no registry type, configuration namespace or generated
+document: the composition path is the one that exists.
+
+A module is contracts before implementation. Define the public behaviour and
+its conformance cases first, make the fake pass them, then fill `internal/`
+until the real service passes the same cases against Postgres. Import another
+module only through its `contracts/`.
+
+== Code should read like the business
+
+Use the words people use for the capability. Make the normal path readable top
+to bottom, with early returns for refusals. Show inputs, time, identifiers,
+state changes, transaction ownership and external effects explicitly rather
+than hiding them in context values. Name a helper for a domain concept or an
+actual repetition, not for a trivial step. Keep decision functions
+deterministic. Write tests around examples, refusals and invariants with
+independently chosen expectations.
+
+A reviewer should be able to explain a changed command's inputs, decision,
+state change, effects and failure behaviour from the command and its rule alone.
+
+== Budgets
+
+Every bucket of source has a ceiling, and a change that exceeds one first
+removes what it replaces, then splits unrelated work, and only then asks for a
+separate owner budget commit that names the bucket, the cost and the evidence.
+`go run ./tools/locbudget --write` lowers ceilings; raising them is the owner's.
+Do not compress readable code or remove useful tests to make a count smaller.
+
+== This site
+
+The documentation is its own repository,
+https://github.com/septagon-oss/platformkit-docs[`platformkit-docs`]. A page
+links to the file that is the truth for what it describes and states nothing
+that file does not; `make check` there fails on any Antora warning. Open a pull
+request against it for a documentation change, and against the source
+repository for anything the documentation describes.

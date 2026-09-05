@@ -1,0 +1,97 @@
+= A client is configuration
+
+One image, one binary, `--role web|worker|all`. Clients differ by configuration
+and assets, never by build. This is the ninth idea in `ARCHITECTURE.md`, and
+the private `septagon-clients` repository is where it is true.
+
+== Three repositories, one direction
+
+[cols="1,1,3"]
+|===
+| Repository | Visibility | Holds
+
+| `septagon-oss/platformkit`
+| public
+| the kernel, the modules a reference architecture needs, `ui/`, `design/`,
+  and `apps/platformkit`, the reference binary
+
+| `septagon-dev/platformkit-catalog`
+| private
+| commercial modules in the same `contracts/` + `internal/` + `module.go` shape
+  — `cart`, `payment` with the Stripe provider — importing the public module
+  by tag
+
+| `septagon-dev/septagon-clients`
+| private
+| `clients/<slug>/` overlays as data, client modules, `apps/flagship`
+  composing public, catalog and client modules into the one image every client
+  runs, and the cluster state that deploys it
+|===
+
+Dependencies point one way: clients depend on the catalog and the public
+module; the catalog depends on the public module; the public module depends on
+neither. Between public tags a private repository may carry a `replace`
+directive to a sibling checkout; the release runbook says when it is removed.
+
+== What a client is
+
+A directory `clients/<slug>/` holding `client.yaml`, brand assets under
+`assets/`, and indexes of the flows and requirements the client's product
+promises. It contains no Go. A client that needs code needs a module.
+
+`client.yaml` holds exactly what the flagship reads, and the loader refuses an
+unknown key:
+
+* `slug` and `name` — the tenant the bootstrap creates and how the shell names
+  it;
+* `hosts.dev|staging|production` — the host that selects the tenant, one per
+  environment;
+* `modules.include` — names from the flagship's static registry, which owns
+  construction order and rejects a name it does not know;
+* `theme` — the base palette and a handful of brand colour weights that resolve
+  to a `design.Pair`; two chrome names a client module may give a meaning to;
+* `roles` — permissions granted to members at tenant creation, checked against
+  the composed modules;
+* `mail.from` — the client's own sender; the relay stays in the deployment's
+  `config.yaml`.
+
+The `client-template` overlay in that repository is the documented starting
+point and boots as it is.
+
+== How the flagship composes
+
+`apps/flagship` maps each module name in `modules.include` to a constructor,
+constructs them in a fixed order — audit next to last, admin last, both
+asserted — and refuses to boot when a client names a module it does not have,
+omits one another requires, or targets an environment that is not one of the
+three. The resolved theme reaches `admin.Deps.Theme` and any client module's
+own shell, so a client's accent is on every page without a second stylesheet.
+
+Migrations from the three repositories are applied by one runner in
+composition order, each capability tracking its own history.
+
+== Running a client locally
+
+From the `septagon-clients` checkout, beside `../platformkit` and
+`../platformkit-catalog`:
+
+[source,sh]
+----
+make up
+make check
+make bootstrap CLIENT=collect EMAIL=root@collect.localhost
+make run CLIENT=collect
+----
+
+The admin shell is at `http://collect.localhost:8080/admin`; Collect's shopper
+storefront, a client module's own shell built on the same components, is at
+`/`. `make e2e CLIENT=collect` drives the shopper journeys with a browser.
+
+== A client module
+
+`modules/collectibles` in that repository is the worked example: six entities
+declared as `rest.Spec`s, so the admin generates their screens with no admin
+code at all; three commands that are rules about state; and a storefront of
+eleven pages that is a caller of `ui.Compose`, `ui/page` and `ui/components` —
+it composes a frame with a bar where the admin has a sidebar, and writes no
+head, stylesheet cache or class string of its own.

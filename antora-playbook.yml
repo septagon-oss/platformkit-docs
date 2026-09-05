@@ -1,0 +1,34 @@
+# The site is one Antora component, `platformkit`, whose pages live in docs/.
+# Every page links to the file in the source repository that is the truth for
+# what it describes, and states nothing that file does not; the previous site
+# copied, and drifted. `npm run check` fails on a warning, which is how a broken
+# cross-reference or a missing attachment is caught before it is published.
+site:
+  title: PlatformKit
+  url: https://septagon-oss.github.io/platformkit-docs
+  start_page: platformkit::index.adoc
+
+content:
+  sources:
+    - url: .
+      branches: HEAD
+      start_path: docs
+
+ui:
+  bundle:
+    url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable
+    snapshot: true
+
+output:
+  dir: build/site
+
+asciidoc:
+  attributes:
+    page-pagination: ''
+    source-repo: https://github.com/septagon-oss/platformkit
+    source-tree: https://github.com/septagon-oss/platformkit/blob/main
+    mobile-repo: https://github.com/septagon-oss/platformkit-mobile
+    community: https://github.com/septagon-dev/platformkit-community/discussions
+
+runtime:
+  fetch: true
