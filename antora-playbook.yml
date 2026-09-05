@@ -13,11 +13,15 @@ content:
     - url: .
       branches: HEAD
       start_path: docs
+      edit_url: 'https://github.com/septagon-oss/platformkit-docs/edit/main/{path}'
 
 ui:
   bundle:
     url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable
     snapshot: true
+  # The default UI's header carries a demo menu; this replaces it with the
+  # three links a reader of this site wants.
+  supplemental_files: ./supplemental-ui
 
 output:
   dir: build/site
