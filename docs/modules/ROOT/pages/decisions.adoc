@@ -32,7 +32,7 @@ the record is the text there.
 
 | {source-tree}/docs/adr/0005-roles-and-who-migrates.md[0005]
 | Roles and who migrates
-| One binary with `--role web|worker|all`; every role migrates behind an
+| One binary with `--role web{vbar}worker{vbar}all`; every role migrates behind an
   advisory lock at start.
 
 | {source-tree}/docs/adr/0006-system-access-is-a-token.md[0006]

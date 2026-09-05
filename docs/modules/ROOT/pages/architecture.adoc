@@ -43,7 +43,7 @@ the native shell, which reads the same resources as JSON.
 | design tokens and the two themes, as struct literals
 
 | `apps/`
-| `platformkit`, the reference binary: `run`, `bootstrap`, `--role web|worker|all`
+| `platformkit`, the reference binary: `run`, `bootstrap`, `--role web{vbar}worker{vbar}all`
 
 | `tools/`
 | `locbudget`, the line-budget ratchet
