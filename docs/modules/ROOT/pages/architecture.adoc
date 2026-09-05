@@ -1,7 +1,8 @@
 = Architecture
 
 The authoritative statement is {source-tree}/ARCHITECTURE.md[`ARCHITECTURE.md`]
-in the repository; the eleven decisions behind it are the
+in the repository, which follows a request from the composition to the
+verification of a change; the eleven decisions behind it are the
 xref:decisions.adoc[ADRs]. This page is the map.
 
 == How the pieces compose
@@ -58,16 +59,15 @@ the native shell, which reads the same resources as JSON.
 | the decisions, one number each
 |===
 
-== Limits
+== Budgets
 
 Every bucket of source has a ceiling in
 {source-tree}/loc-budget.json[`loc-budget.json`], and the number of first-party
 packages linked into the binary has one in
-{source-tree}/packages-budget.json[`packages-budget.json`]. A ceiling is the
-count rounded up to the next hundred; a pull request that exceeds one fails;
-raising one is an owner commit with a written reason. The repository's
-`ARCHITECTURE.md` carries the snapshot at the last tag and explains why the
-file, not the document, is the source.
+{source-tree}/packages-budget.json[`packages-budget.json`]. A pull request that
+exceeds a ceiling fails; raising one is an owner commit with a written reason.
+The numbers are not copied into prose anywhere, this page included: run
+`make check-loc` and `make check-packages` for today's.
 
 == The browser half
 
@@ -81,10 +81,14 @@ dozen lines. Every response carries a content security policy with a
 per-request nonce. The detail is in xref:ui.adoc[Components, pages and
 screens].
 
-== The gates
+== Verification
 
-`make check` runs gates one to nine — build, vet and format, the test suite
-against real Postgres, the line and package budgets, the import boundary, the
-boot validation of authorization declarations, the tenant isolation test and
-the empty-database boot — and `make e2e` is gate ten, the browser. CI runs
-both. The list stops at ten; the table is in `ARCHITECTURE.md`.
+`make check` runs the build, vet and format checks, the test suite against real
+Postgres and NATS — which includes the boot validation of authorization
+declarations, the tenant isolation cases and the empty-database boot — the
+source and package budgets, the import boundary and tenant-setting ownership.
+`make e2e` separately drives the admin shell and a generated CRUD journey in a
+browser. CI runs both, plus dependency vulnerability analysis; the release
+workflow checks the tagged tree before publishing an image and its SBOM. A type
+check proves types, a test proves its exercised cases and a journey proves its
+observed outcome; none alone proves production readiness.

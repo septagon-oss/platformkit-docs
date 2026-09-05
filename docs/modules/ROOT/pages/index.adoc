@@ -19,8 +19,11 @@ repository is right.
 
 == The ten ideas
 
-The repository's {source-tree}/ARCHITECTURE.md[`ARCHITECTURE.md`] states them
-in full. In one line each:
+The repository's {source-tree}/ARCHITECTURE.md[`ARCHITECTURE.md`] walks the same
+ground in the order a request meets it: the composition, the request path, the
+schema, the interface, the delivery boundaries and how each is verified. The
+decisions behind it are the xref:decisions.adoc[ADRs]. As ten ideas, one line
+each:
 
 . Composition is a list: `apps/platformkit/modules.go` constructs every module
   in dependency order, and the compiler checks the graph.
@@ -38,13 +41,14 @@ in full. In one line each:
   admin module generates seven pages from each one.
 . A client is configuration: one image, one binary with roles, differences in
   configuration and assets only.
-. Claims need evidence: ten gates, and untested claims stay explicit.
+. Claims need evidence: `make check` and `make e2e` prove what they exercise,
+  and untested claims stay explicit.
 
 == Where to go next
 
 * xref:quickstart.adoc[Run it] — Postgres, NATS, one tenant and the
   application, from a fresh checkout.
-* xref:architecture.adoc[Architecture] — the layout, the limits and the browser
+* xref:architecture.adoc[Architecture] — the layout, the budgets, the browser
   half, and the interactive map of how the pieces compose.
 * xref:modules.adoc[Build a module] — the task module as the worked example.
 * xref:clients.adoc[A client is configuration] — how a product is assembled
