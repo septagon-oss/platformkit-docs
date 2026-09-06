@@ -1,97 +1,51 @@
-= A client is configuration
+= Downstream application composition
 
-One image, one binary, `--role web|worker|all`. Clients differ by configuration
-and assets, never by build. This is the ninth idea in `ARCHITECTURE.md`, and
-the private `septagon-clients` repository is where it is true.
+A downstream application pins PlatformKit and supplies the modules,
+configuration and assets its product needs. Client configuration selects
+capabilities and branding; client-specific Go belongs in a module. The
+link:{source-tree}/ARCHITECTURE.md#keep-delivery-boundaries-explicit[public architecture]
+defines that boundary.
 
-== Three repositories, one direction
+== Keep dependencies explicit
 
-[cols="1,1,3"]
-|===
-| Repository | Visibility | Holds
+The application owns composition. Follow the reference application's
+link:{source-tree}/apps/platformkit/modules.go[ordered module constructors]:
+each constructor takes typed dependencies and returns a manifest. The
+application connects the returned capabilities to consumers that need them.
+Modules depend on each other's public contracts, and the foundation remains
+independent of downstream implementations.
 
-| `septagon-oss/platformkit`
-| public
-| the kernel, the modules a reference architecture needs, `ui/`, `design/`,
-  and `apps/platformkit`, the reference binary
+Use the existing `contracts/`, `internal/` and `module.go` structure for a new
+capability. The xref:modules.adoc[module guide] explains those boundaries and
+links to the reference implementation. Configuration selects among the
+capabilities the application composes; it does not discover or load Go code.
 
-| `septagon-dev/platformkit-catalog`
-| private
-| commercial modules in the same `contracts/` + `internal/` + `module.go` shape
-  — `cart`, `payment` with the Stripe provider — importing the public module
-  by tag
+== Reuse the owning capabilities
 
-| `septagon-dev/septagon-clients`
-| private
-| `clients/<slug>/` overlays as data, client modules, `apps/flagship`
-  composing public, catalog and client modules into the one image every client
-  runs, and the cluster state that deploys it
-|===
+Supply branding through `design.Pair` and the existing shared UI composition.
+The reference application passes its theme to `admin.Deps`; a product that
+owns another shell can use the same xref:ui.adoc[components and stylesheet
+composition]. It does not need a second token system or component registry.
 
-Dependencies point one way: clients depend on the catalog and the public
-module; the catalog depends on the public module; the public module depends on
-neither. Between public tags a private repository may carry a `replace`
-directive to a sibling checkout; the release runbook says when it is removed.
+Each selected module supplies its own migration source. The foundation
+collects sources in composition order and retains each owner's history.
+Follow the link:{source-tree}/docs/adr/0011-migration-ownership.md[migration
+ownership contract] when evolving a capability or changing a composition.
 
-== What a client is
+The downstream application owns its configuration format, provider choices
+and deployment inputs. Keep its setup instructions beside that implementation
+so they describe the loader and composition actually being run.
 
-A directory `clients/<slug>/` holding `client.yaml`, brand assets under
-`assets/`, and indexes of the flows and requirements the client's product
-promises. It contains no Go. A client that needs code needs a module.
+== Verify the selected composition
 
-`client.yaml` holds exactly what the flagship reads, and the loader refuses an
-unknown key:
+Read the link:{source-tree}/CONTRIBUTING.md[contribution guide] before adding a
+module, then run the owning application's checks against its pinned
+dependencies. Exercise the selected providers, migrations and user journeys;
+a module's isolated checks do not establish that the application is wired
+correctly.
 
-* `slug` and `name` — the tenant the bootstrap creates and how the shell names
-  it;
-* `hosts.dev|staging|production` — the host that selects the tenant, one per
-  environment;
-* `modules.include` — names from the flagship's static registry, which owns
-  construction order and rejects a name it does not know;
-* `theme` — the base palette and a handful of brand colour weights that resolve
-  to a `design.Pair`; two chrome names a client module may give a meaning to;
-* `roles` — permissions granted to members at tenant creation, checked against
-  the composed modules;
-* `mail.from` — the client's own sender; the relay stays in the deployment's
-  `config.yaml`.
-
-The `client-template` overlay in that repository is the documented starting
-point and boots as it is.
-
-== How the flagship composes
-
-`apps/flagship` maps each module name in `modules.include` to a constructor,
-constructs them in a fixed order — audit next to last, admin last, both
-asserted — and refuses to boot when a client names a module it does not have,
-omits one another requires, or targets an environment that is not one of the
-three. The resolved theme reaches `admin.Deps.Theme` and any client module's
-own shell, so a client's accent is on every page without a second stylesheet.
-
-Migrations from the three repositories are applied by one runner in
-composition order, each capability tracking its own history.
-
-== Running a client locally
-
-From the `septagon-clients` checkout, beside `../platformkit` and
-`../platformkit-catalog`:
-
-[source,sh]
-----
-make up
-make check
-make bootstrap CLIENT=collect EMAIL=root@collect.localhost
-make run CLIENT=collect
-----
-
-The admin shell is at `http://collect.localhost:8080/admin`; Collect's shopper
-storefront, a client module's own shell built on the same components, is at
-`/`. `make e2e CLIENT=collect` drives the shopper journeys with a browser.
-
-== A client module
-
-`modules/collectibles` in that repository is the worked example: six entities
-declared as `rest.Spec`s, so the admin generates their screens with no admin
-code at all; three commands that are rules about state; and a storefront of
-eleven pages that is a caller of `ui.Compose`, `ui/page` and `ui/components` —
-it composes a frame with a bar where the admin has a sidebar, and writes no
-head, stylesheet cache or class string of its own.
+The reference binary supports `--role web|worker|all`. Those roles still need
+verification of shared storage, schema compatibility, migration ownership and
+provider behavior in the intended environment. See
+xref:operations.adoc[operations] for the public runtime boundary and
+xref:quickstart.adoc[getting started] to run the reference application.
