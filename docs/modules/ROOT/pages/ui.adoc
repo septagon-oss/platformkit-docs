@@ -100,3 +100,36 @@ it to be found.
 The component gallery at `/admin/_gallery` renders every component once, from
 the package's own exported list — the same list the tests render to prove the
 class closure — so the page and the test cannot disagree about what exists.
+
+== The design export
+
+Each gallery entry is an `Example`: an explicit identity such as
+`pk-ui.component.button/primary`, the typed props and slots the constructor
+was called with, and a node that renders through that constructor.
+{source-tree}/ui/export.go[`ui.Export`] projects a palette, a list of examples
+and any stylesheet additions into one JSON snapshot: the tokens of each theme,
+every glyph as SVG with its source and licence, every example with its
+property values, their JSON Schema, its slot names and its rendered HTML, the
+composed stylesheet, and a content hash. A product calls the same function with
+its own `design.Pair` and examples; nothing registers a second catalog.
+
+[source,sh]
+----
+go run ./tools/designexport
+go run ./tools/designexport --example pk-ui.component.button/primary
+----
+
+{source-tree}/tools/designexport[`tools/designexport`] writes the reference
+snapshot to standard output. `--example` selects one entry, and `--props`
+applies a property patch read from standard input through
+`Example.WithProps`, so a design tool can ask the Go renderer for a variation
+instead of restating the component in another language. The patch is exact:
+public field names and types only, no unknown or transport fields.
+
+{source-tree}/tools/designexport/openpencil[`tools/designexport/openpencil`]
+turns the snapshot's tokens and icons into native variables and linked icon
+components in a `.fig` file, and carries the pinned OpenPencil SDK corrections
+its conformance tests need. Its README states what is supported and what is
+not: converting components, pages and flows, and the hosted editor build, are
+unfinished, and its dependency audit is an open gate. CI runs that suite beside
+`make check`.

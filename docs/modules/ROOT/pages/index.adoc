@@ -46,10 +46,11 @@ each:
 
 == Where to go next
 
-* xref:quickstart.adoc[Run it] — Postgres, NATS, one tenant and the
-  application, from a fresh checkout.
-* xref:architecture.adoc[Architecture] — the layout, the budgets, the browser
-  half, and the interactive map of how the pieces compose.
+* xref:quickstart.adoc[Run it] — one `go run` command with nothing but Go
+  installed, then the development loop against Postgres and NATS.
+* xref:architecture.adoc[Architecture] — the nested maps, from the
+  repositories down to each flow, then the layout, the budgets and the
+  browser half.
 * xref:modules.adoc[Build a module] — the task module as the worked example.
 * xref:clients.adoc[A client is configuration] — how a product is assembled
   from public, catalog and client modules.

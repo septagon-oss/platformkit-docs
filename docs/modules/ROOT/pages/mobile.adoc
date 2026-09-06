@@ -16,7 +16,10 @@ write it. An unreadable resource is not in the document at all. The golden file
 {source-tree}/ui/screens/testdata/catalog.json[`ui/screens/testdata/catalog.json`]
 is that document for a fixture entity; the shell carries a byte copy and its
 parser test reads it, so a change to the seam the shell cannot parse fails
-there.
+there. The link:{attachmentsdir}/flow-seam.html[seam flow^] draws the path
+from the entity struct to both shells, and the
+link:{attachmentsdir}/flow-mobile.html[native shell flow^] the session,
+catalog and screen sequence.
 
 The session is the auth module's cookie. The shell keeps the `Set-Cookie` value
 it was given and sends it back as `Cookie`; the kernel's CSRF rule accepts a

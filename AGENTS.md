@@ -9,4 +9,5 @@
    describe. Version numbers come from `docs/antora.yml` attributes, never from
    prose.
 5. No generated content, no copied files from the source repository except
-   `images/logo.png` and the composability diagram under `attachments/`.
+   `images/logo.png` and the architecture maps under `attachments/`, which
+   are copied from `ops/platformkit-record/architecture/` in the workspace.

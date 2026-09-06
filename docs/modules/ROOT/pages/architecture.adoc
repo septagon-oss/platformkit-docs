@@ -5,21 +5,78 @@ in the repository, which follows a request from the composition to the
 verification of a change; the eleven decisions behind it are the
 xref:decisions.adoc[ADRs]. This page is the map.
 
-== How the pieces compose
+== The maps
 
-link:{attachmentsdir}/platformkit-composability.html[Open the interactive
-map^] — twelve nodes, the two repository boundaries, and three guided views: a
-client is configuration, one UI with three shells, and the schema seam. It was
-authored from the code on 2026-09-05 and checked at four desktop sizes.
+The maps are nested: one for the workspace, three for the system, and nine
+for its flows. Each is an interactive page whose JSON source is kept beside it
+in the programme record; each was authored from the code on 2026-09-06 and
+checked for containment at four desktop sizes from 1440×900 to 2048×1320.
+Open a map, then the map below it for the part you are reading about.
 
-The main path runs left to right: a `client.yaml` names modules, a theme and
-hosts; `apps/flagship` (or `apps/platformkit` in the public repository)
-constructs `Module(Deps{...})` in dependency order; each module's
-`rest.Spec.Mount` registers five routes and one `httpx.Resource`; the kernel
-serves them under a tenant transaction against Postgres and relays events
-through the outbox to JetStream. Above it, `ui/components` and `ui/page` are the
-abstractions three shells compose: the admin module, a client's storefront, and
-the native shell, which reads the same resources as JSON.
+=== Level 0 — the repositories
+
+* link:{attachmentsdir}/platformkit-workspace.html[The repositories and where
+  each thing lives^] — the public foundation, the native shell and this site;
+  the private catalog and clients; GitHub Actions, the image registry, the
+  clusters, Postgres and JetStream.
+
+=== Level 1 — the system
+
+* link:{attachmentsdir}/platformkit-composability.html[How the pieces
+  compose^] — `client.yaml` names modules, `main` constructs them, the kernel
+  serves them under a tenant transaction; one UI with three shells; the
+  schema seam; the design export to an editor.
+* link:{attachmentsdir}/platformkit-foundation.html[The layers inside the
+  public repository^] — `kit/`, `modules/`, `ui/` and `design/`, `apps/` and
+  `tools/`, and which layer composes which.
+* link:{attachmentsdir}/platformkit-modules.html[The composed modules and who
+  depends on whom^] — the flagship's fourteen modules across three
+  repositories and their `Deps` edges, in the order the registry constructs
+  them.
+
+=== Level 2 — the flows
+
+[cols="1,3"]
+|===
+| Flow | What it follows
+
+| link:{attachmentsdir}/flow-boot.html[Boot^]
+| `config.Load`, `compose`, `app.New`, the migrations, the boot gates and the
+  split into `web`, `worker` and `all`.
+
+| link:{attachmentsdir}/flow-request.html[One request^]
+| From the request host to the commit: headers, request id, tenant, the lazy
+  transaction, the session, the declared authorization, the handler, row-level
+  security, the outbox row and the buffered response.
+
+| link:{attachmentsdir}/flow-events.html[Events and jobs^]
+| From a committed outbox row through the relay and JetStream to a handler in
+  the event's tenant transaction; the scheduler and the module jobs.
+
+| link:{attachmentsdir}/flow-seam.html[The schema seam^]
+| One entity struct to five routes, seven generated pages, the resources JSON,
+  the native shell's screens and the OpenAPI document.
+
+| link:{attachmentsdir}/flow-design.html[Design^]
+| Tokens and class lists to one stylesheet; the gallery's typed examples to a
+  snapshot, the export tool and the OpenPencil foundation file.
+
+| link:{attachmentsdir}/flow-client.html[A client^]
+| `client.yaml` and assets through the flagship's loader and registry to a
+  bootstrapped tenant with an admin and a storefront.
+
+| link:{attachmentsdir}/flow-mobile.html[The native shell^]
+| Sign in, keep the cookie, read the seam, derive the screens, call the same
+  five routes.
+
+| link:{attachmentsdir}/flow-start.html[`start`^]
+| From nothing to a running application: an embedded Postgres, the role, the
+  first tenant, the combined role, Ctrl+C.
+
+| link:{attachmentsdir}/flow-delivery.html[Delivery^]
+| From a pull request through the gates to a tagged image with its SBOM and a
+  cluster that pulls it.
+|===
 
 == Layout
 
@@ -36,9 +93,10 @@ the native shell, which reads the same resources as JSON.
   user, auth, admin, audit, notification, billing, content, site, file, task
 
 | `ui/`
-| typed components, the class builder and the CSS emitter, the browser
-  controllers, `page` (documents as values) and `screens` (screens generated
-  from schemas, and the resources catalog)
+| typed components with their gallery of typed examples, the class builder,
+  the stylesheet IR and the CSS emitter, the icon set, the browser controllers,
+  `page` (documents as values), `screens` (screens generated from schemas, and
+  the resources catalog) and `ui.Export`, the design snapshot
 
 | `design/`
 | design tokens and the two themes, as struct literals
@@ -47,7 +105,9 @@ the native shell, which reads the same resources as JSON.
 | `platformkit`, the reference binary: `start` (its own database, one command), `run` with `--role web{vbar}worker{vbar}all`, `bootstrap`
 
 | `tools/`
-| `locbudget`, the line-budget ratchet
+| `locbudget`, the line-budget ratchet; `designexport`, the snapshot of the
+  design contract, and under it the OpenPencil tooling that turns the
+  snapshot's tokens and icons into a `.fig` file
 
 | `migrations/`
 | the foundation schema; each module carries its own SQL
@@ -88,7 +148,10 @@ Postgres and NATS — which includes the boot validation of authorization
 declarations, the tenant isolation cases and the empty-database boot — the
 source and package budgets, the import boundary and tenant-setting ownership.
 `make e2e` separately drives the admin shell and a generated CRUD journey in a
-browser. CI runs both, plus dependency vulnerability analysis; the release
-workflow checks the tagged tree before publishing an image and its SBOM. A type
+browser. CI runs both, plus `govulncheck` and the native design conformance
+suite under `tools/designexport/openpencil`; the release workflow checks the
+tagged tree before publishing an image and its SBOM. The
+link:{attachmentsdir}/flow-delivery.html[delivery flow^] draws the gates in
+order. A type
 check proves types, a test proves its exercised cases and a journey proves its
 observed outcome; none alone proves production readiness.

@@ -21,7 +21,8 @@ the mail password — belong there and not in the file.
 
 `--role web` serves HTTP. `--role worker` runs the outbox relay, the event
 subscriptions and the periodic jobs. `--role all` does both and is what a
-laptop runs. Every role applies pending migrations at start behind an advisory
+laptop runs; the link:{attachmentsdir}/flow-boot.html[boot flow^] shows what
+each role starts. Every role applies pending migrations at start behind an advisory
 lock, so there is no migration job and no `--migrate-only`; the deployment shape
 that follows is a startup probe long enough for the ledger to apply, `maxSurge
 1` and `maxUnavailable 0`. Two worker replicas share one JetStream consumer

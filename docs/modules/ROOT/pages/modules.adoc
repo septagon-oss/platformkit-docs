@@ -55,7 +55,11 @@ cannot express, such as assigning a task.
 Two rules are enforced at boot rather than remembered: every route declares its
 authorization, and every permission a route declares is one some module's
 manifest defines. A manifest that emits an event it did not promise, or
-subscribes to one nobody emits, refuses to start.
+subscribes to one nobody emits, refuses to start. The
+link:{attachmentsdir}/flow-boot.html[boot flow^] draws those gates in order;
+the link:{attachmentsdir}/flow-request.html[request flow^] and the
+link:{attachmentsdir}/flow-events.html[events flow^] follow a route and an
+event through the kernel.
 
 == Depending on another module
 

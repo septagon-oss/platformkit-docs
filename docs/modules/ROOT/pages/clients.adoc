@@ -49,3 +49,6 @@ verification of shared storage, schema compatibility, migration ownership and
 provider behavior in the intended environment. See
 xref:operations.adoc[operations] for the public runtime boundary and
 xref:quickstart.adoc[getting started] to run the reference application.
+
+Related architecture maps: link:{attachmentsdir}/flow-client.html[client flow^]
+and link:{attachmentsdir}/platformkit-modules.html[module map^].
