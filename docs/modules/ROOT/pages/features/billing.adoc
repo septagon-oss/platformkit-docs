@@ -61,9 +61,9 @@ include::partial$map-embed.adoc[]
 |===
 | Authorization | Who passes | Routes
 
-| `billing:read` | a member of the tenant | `list`, `read`, `read`
-| `billing:catalog` | the operator's tenant only | `create`, `update`, `delete`
-| `billing:manage` | a member of the tenant | `cancel`, `subscribe`
+| `billing:read` | a member of the tenant | `plan-list`, `plan-read`, `subscription-read`
+| `billing:catalog` | the operator's tenant only | `plan-create`, `plan-update`, `plan-delete`
+| `billing:manage` | a member of the tenant | `subscription-cancel`, `subscription-subscribe`
 |===
 // generated:authorization:end
 
@@ -74,11 +74,11 @@ include::partial$map-embed.adoc[]
 |===
 | Event | Published by | Handled by
 
-| `billing.plan.created` | `create` | `audit` (every event)
-| `billing.plan.updated` | `update` | `audit` (every event)
-| `billing.plan.deleted` | `delete` | `audit` (every event)
-| `billing.subscribed` | `subscribe` | `audit` (every event)
-| `billing.cancelled` | `cancel` | `audit` (every event)
+| `billing.plan.created` | `plan-create` | `audit` (every event)
+| `billing.plan.updated` | `plan-update` | `audit` (every event)
+| `billing.plan.deleted` | `plan-delete` | `audit` (every event)
+| `billing.subscribed` | `subscription-subscribe` | `audit` (every event)
+| `billing.cancelled` | `subscription-cancel` | `audit` (every event)
 | `billing.renewed` | a job, hook or command in the module | `audit` (every event)
 | `billing.past_due` | a job, hook or command in the module | `audit` (every event)
 |===

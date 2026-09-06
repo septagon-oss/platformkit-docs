@@ -60,7 +60,7 @@ include::partial$map-embed.adoc[]
 |===
 | Authorization | Who passes | Routes
 
-| `tenant:manage` | the operator's tenant only | `list`, `create`, `read`, `add-host`, `invite`, `suspend`
+| `tenant:manage` | the operator's tenant only | `tenant-list`, `tenant-create`, `tenant-read`, `tenant-add-host`, `tenant-invite`, `tenant-suspend`
 |===
 // generated:authorization:end
 
@@ -71,10 +71,10 @@ include::partial$map-embed.adoc[]
 |===
 | Event | Published by | Handled by
 
-| `tenant.created` | `create` | `audit` (every event)
-| `tenant.suspended` | `suspend` | `audit` (every event)
-| `tenant.host_added` | `add-host` | `audit` (every event)
-| `user.invited` | `invite` | `auth`, `audit` (every event)
+| `tenant.created` | `tenant-create` | `audit` (every event)
+| `tenant.suspended` | `tenant-suspend` | `audit` (every event)
+| `tenant.host_added` | `tenant-add-host` | `audit` (every event)
+| `user.invited` | `tenant-invite` | `auth`, `audit` (every event)
 |===
 // generated:events:end
 

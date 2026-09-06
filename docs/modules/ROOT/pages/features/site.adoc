@@ -57,8 +57,8 @@ include::partial$map-embed.adoc[]
 |===
 | Authorization | Who passes | Routes
 
-| `site:manage` | a member of the tenant | `read`, `save`
-| none: public | anyone | `public`
+| `site:manage` | a member of the tenant | `settings-read`, `settings-save`
+| none: public | anyone | `settings-public`
 |===
 // generated:authorization:end
 
@@ -69,7 +69,7 @@ include::partial$map-embed.adoc[]
 |===
 | Event | Published by | Handled by
 
-| `site.settings_updated` | `save` | `audit` (every event)
+| `site.settings_updated` | `settings-save` | `audit` (every event)
 |===
 // generated:events:end
 

@@ -69,9 +69,9 @@ include::partial$map-embed.adoc[]
 |===
 | Authorization | Who passes | Routes
 
-| none: public | anyone | `auth-login`, `forgot`, `reset`
-| none: any signed-in member | a session of this tenant | `auth-logout`, `auth-me`, `change`
-| `role:manage` | a member of the tenant | `list`, `set`
+| none: public | anyone | `login`, `password-forgot`, `password-reset`
+| none: any signed-in member | a session of this tenant | `logout`, `me`, `password-change`
+| `role:manage` | a member of the tenant | `role-list`, `role-set`
 |===
 // generated:authorization:end
 
@@ -85,10 +85,10 @@ include::partial$map-embed.adoc[]
 | `auth.logged_in` | `login` | `audit` (every event)
 | `auth.logged_out` | `logout` | `audit` (every event)
 | `auth.login_failed` | `login` | `audit` (every event)
-| `auth.reset_requested` | `forgot` | `auth`, `audit` (every event)
-| `auth.password_reset` | `reset` | `audit` (every event)
-| `auth.role_set` | `set` | `audit` (every event)
-| `user.password_set` | `change`, `reset` | `audit` (every event)
+| `auth.reset_requested` | `password-forgot` | `auth`, `audit` (every event)
+| `auth.password_reset` | `password-reset` | `audit` (every event)
+| `auth.role_set` | `role-set` | `audit` (every event)
+| `user.password_set` | `password-change`, `password-reset` | `audit` (every event)
 |===
 // generated:events:end
 

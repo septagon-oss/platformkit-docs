@@ -60,7 +60,7 @@ include::partial$map-embed.adoc[]
 |===
 | Authorization | Who passes | Routes
 
-| none: any signed-in member | a session of this tenant | `admin-resources`
+| none: any signed-in member | a session of this tenant | `resources`
 |===
 // generated:authorization:end
 

@@ -65,8 +65,8 @@ include::partial$map-embed.adoc[]
 |===
 | Authorization | Who passes | Routes
 
-| `user:manage` | a member of the tenant | `create`, `create`, `update`, `delete`, `deactivate`, `roles`, `set-password`
-| `user:read` | a member of the tenant | `list`, `read`
+| `user:manage` | a member of the tenant | `invitation-create`, `user-create`, `user-update`, `user-delete`, `user-deactivate`, `user-roles`, `user-set-password`
+| `user:read` | a member of the tenant | `user-list`, `user-read`
 |===
 // generated:authorization:end
 
@@ -77,13 +77,13 @@ include::partial$map-embed.adoc[]
 |===
 | Event | Published by | Handled by
 
-| `user.user.created` | `create` | `audit` (every event)
-| `user.user.updated` | `update` | `audit` (every event)
-| `user.user.deleted` | `delete` | `audit` (every event)
-| `user.invited` | `create` | `auth`, `audit` (every event)
-| `user.password_set` | `set-password` | `audit` (every event)
-| `user.roles_set` | `create`, `roles` | `audit` (every event)
-| `user.deactivated` | `deactivate` | `audit` (every event)
+| `user.user.created` | `user-create` | `audit` (every event)
+| `user.user.updated` | `user-update` | `audit` (every event)
+| `user.user.deleted` | `user-delete` | `audit` (every event)
+| `user.invited` | `invitation-create` | `auth`, `audit` (every event)
+| `user.password_set` | `user-set-password` | `audit` (every event)
+| `user.roles_set` | `invitation-create`, `user-roles` | `audit` (every event)
+| `user.deactivated` | `user-deactivate` | `audit` (every event)
 |===
 // generated:events:end
 

@@ -54,7 +54,7 @@ include::partial$map-embed.adoc[]
 |===
 | Authorization | Who passes | Routes
 
-| `audit:read` | a member of the tenant | `list`, `read`
+| `audit:read` | a member of the tenant | `event-list`, `event-read`
 |===
 // generated:authorization:end
 

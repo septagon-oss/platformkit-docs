@@ -83,7 +83,7 @@ def authorization_table(module):
     by = collections.OrderedDict()
     for o in mine:
         key = (o['kind'], o['permission'])
-        by.setdefault(key, []).append(o['id'].split('-', 2)[-1] if o['id'].count('-') >= 2 else o['id'])
+        by.setdefault(key, []).append(o['id'].split('-', 1)[1])
     rows = []
     for (kind, perm), verbs in by.items():
         name = {'permission': f'`{perm}`', 'operator_permission': f'`{perm}`', 'public': 'none: public', 'signed_in': 'none: any signed-in member'}[kind]
@@ -99,7 +99,7 @@ def events_table(module):
     for o in ops:
         if o['module'] == module:
             for e in o['events']:
-                from_routes.setdefault(e, []).append(o['id'].split('-', 2)[-1])
+                from_routes.setdefault(e, []).append(o['id'].split('-', 1)[1])
     names = list(dict.fromkeys(declared + list(from_routes)))
     if not names:
         return None

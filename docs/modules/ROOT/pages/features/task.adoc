@@ -58,8 +58,8 @@ include::partial$map-embed.adoc[]
 |===
 | Authorization | Who passes | Routes
 
-| `task:read` | a member of the tenant | `list`, `read`
-| `task:update` | a member of the tenant | `create`, `update`, `delete`, `assign`, `check-sla`, `resolve`
+| `task:read` | a member of the tenant | `task-list`, `task-read`
+| `task:update` | a member of the tenant | `task-create`, `task-update`, `task-delete`, `task-assign`, `task-check-sla`, `task-resolve`
 |===
 // generated:authorization:end
 
@@ -70,12 +70,12 @@ include::partial$map-embed.adoc[]
 |===
 | Event | Published by | Handled by
 
-| `task.task.created` | `create` | `audit` (every event)
-| `task.task.updated` | `update` | `audit` (every event)
-| `task.task.deleted` | `delete` | `audit` (every event)
-| `task.assigned` | `assign` | `audit` (every event)
-| `task.resolved` | `resolve` | `audit` (every event)
-| `task.sla_breached` | `create`, `update`, `delete`, `check-sla` | `audit` (every event)
+| `task.task.created` | `task-create` | `audit` (every event)
+| `task.task.updated` | `task-update` | `audit` (every event)
+| `task.task.deleted` | `task-delete` | `audit` (every event)
+| `task.assigned` | `task-assign` | `audit` (every event)
+| `task.resolved` | `task-resolve` | `audit` (every event)
+| `task.sla_breached` | `task-create`, `task-update`, `task-delete`, `task-check-sla` | `audit` (every event)
 |===
 // generated:events:end
 

@@ -66,9 +66,9 @@ include::partial$map-embed.adoc[]
 |===
 | Authorization | Who passes | Routes
 
-| `file:read` | a member of the tenant | `list`, `read`, `content`, `content-head`
-| `file:manage` | a member of the tenant | `upload`, `delete`
-| none: public | anyone | `public`, `public-head`
+| `file:read` | a member of the tenant | `file-list`, `file-read`, `file-content`, `file-content-head`
+| `file:manage` | a member of the tenant | `file-upload`, `file-delete`
+| none: public | anyone | `file-public`, `file-public-head`
 |===
 // generated:authorization:end
 
@@ -79,8 +79,8 @@ include::partial$map-embed.adoc[]
 |===
 | Event | Published by | Handled by
 
-| `file.uploaded` | `upload` | `audit` (every event)
-| `file.deleted` | `delete` | `file`, `audit` (every event)
+| `file.uploaded` | `file-upload` | `audit` (every event)
+| `file.deleted` | `file-delete` | `file`, `audit` (every event)
 |===
 // generated:events:end
 

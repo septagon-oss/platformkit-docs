@@ -68,9 +68,9 @@ include::partial$map-embed.adoc[]
 |===
 | Authorization | Who passes | Routes
 
-| `content:read` | a member of the tenant | `list`, `read`
-| `content:manage` | a member of the tenant | `create`, `update`, `delete`, `archive`, `publish`, `unpublish`
-| none: public | anyone | `public`
+| `content:read` | a member of the tenant | `content-list`, `content-read`
+| `content:manage` | a member of the tenant | `content-create`, `content-update`, `content-delete`, `content-archive`, `content-publish`, `content-unpublish`
+| none: public | anyone | `content-public`
 |===
 // generated:authorization:end
 
@@ -81,12 +81,12 @@ include::partial$map-embed.adoc[]
 |===
 | Event | Published by | Handled by
 
-| `content.content.created` | `create` | `audit` (every event)
-| `content.content.updated` | `update` | `audit` (every event)
-| `content.content.deleted` | `delete` | `audit` (every event)
-| `content.published` | `publish` | `audit` (every event)
-| `content.unpublished` | `unpublish` | `audit` (every event)
-| `content.archived` | `archive` | `audit` (every event)
+| `content.content.created` | `content-create` | `audit` (every event)
+| `content.content.updated` | `content-update` | `audit` (every event)
+| `content.content.deleted` | `content-delete` | `audit` (every event)
+| `content.published` | `content-publish` | `audit` (every event)
+| `content.unpublished` | `content-unpublish` | `audit` (every event)
+| `content.archived` | `content-archive` | `audit` (every event)
 |===
 // generated:events:end
 
