@@ -67,6 +67,12 @@ gate that keeps it true, and what was rejected.
 | Capabilities own migration progress
 | Each capability numbers its own SQL; one runner applies them in composition
   order, commits each file with its history row, and keeps no down files.
+
+| xref:decisions/0012-decisions-are-pure.adoc[0012]
+| A command is a pure decision, applied
+| A rule is a pure function in `contracts/` of the entity and the transaction's
+  instant; `crud.Apply` writes what it concluded, and the fake applies the same
+  function to memory.
 |===
 
 The design behind the UI composition layer and the native shell, written on

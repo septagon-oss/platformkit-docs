@@ -1,0 +1,76 @@
+= 0012 — A command is a pure decision, applied
+
+Status: accepted; the first modules on it are content and site, the rest
+follow. The record is
+{source-tree}/docs/adr/0012-decisions-are-pure.md[`docs/adr/0012-decisions-are-pure.md`];
+this page is its map and its summary and states nothing the record does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/decisions/0012-decisions-are-pure.html" title="ADR 0012 — A command is a pure decision, applied" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/decisions/0012-decisions-are-pure.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>decisions/0012-decisions-are-pure</code> in the record</figcaption>
+</figure>
+++++
+
+== Context
+
+Each command mixed its rule with its effects: a service read a row, changed it
+in place, read the wall clock and wrote the row and the event. The same rule
+was mirrored by hand in the module's fake, and a conformance suite was the only
+thing keeping the two copies equal. GORM stamped `created_at` and `updated_at`
+from its own clock, so one transaction wrote three different "nows", and a test
+could only assert a window around its own clock.
+
+== Decision
+
+A command's rule is a pure function in the module's `contracts/`: it takes the
+entity as it is and the instant the command runs — and any other effect, such
+as a fresh id, as an argument — and answers a `crud.Outcome`: the entity as it
+is next, and the event that announces the change, or no event when nothing
+changed. The transaction carries the instant: `db.Tx.At()` is the moment it
+opened, and the handle's clock is pinned to it, so every timestamp written
+inside is that one instant. `crud.Apply` is the effectful half: read, decide,
+and when the decision moved the row, write the named columns and publish the
+event in the same transaction. A module's fake applies the same decision to
+memory, so there is one copy of every rule.
+
+== Consequences
+
+* Rules are tested as functions, with chosen instants and no database; the
+  shells are tested once, in `kit/crud`, for every module.
+* A repeated command is silent by construction, not by a check in each service.
+* `db.Now()` remains for what runs outside a transaction; inside one,
+  `tx.At()` is the clock, and a service that reads `db.Now()` is the pattern
+  this replaces.
+* Two updates in one transaction carry the same `updated_at`, which is what a
+  transaction means; the weak ETag on a public page changes per transaction.
+
+== Where it lives
+
+* {source-tree}/kit/db/tx.go[`kit/db/tx.go`] — `Tx.At()`, and the handle's
+  clock pinned to it when a transaction opens.
+* {source-tree}/kit/crud/crud.go[`kit/crud/crud.go`] — `Outcome` and `Apply`,
+  the effectful half every module shares.
+* {source-tree}/modules/content/contracts/lifecycle.go[`modules/content/contracts/lifecycle.go`]
+  — the three lifecycle decisions, applied by
+  {source-tree}/modules/content/internal/service.go[`internal/service.go`] to a
+  row and by
+  {source-tree}/modules/content/contracts/contenttest/fake.go[`contenttest/fake.go`]
+  to a map.
+* {source-tree}/modules/site/contracts/save.go[`modules/site/contracts/save.go`]
+  — the site's one decision, with the fresh id as an argument.
+
+== Evidence
+
+[source,sh]
+----
+go test ./kit/crud ./modules/content/... ./modules/site/...
+----
+
+The kernel's Apply test, the pure decision tests, and the conformance suites
+against the fake and against Postgres.

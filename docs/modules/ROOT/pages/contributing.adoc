@@ -24,9 +24,12 @@ Use the words people use for the capability. Make the normal path readable top
 to bottom, with early returns for refusals. Show inputs, time, identifiers,
 state changes, transaction ownership and external effects explicitly rather
 than hiding them in context values. Name a helper for a domain concept or an
-actual repetition, not for a trivial step. Keep decision functions
-deterministic. Write tests around examples, refusals and invariants with
-independently chosen expectations.
+actual repetition, not for a trivial step. A command's rule is a pure function
+in `contracts/` of the entity and the transaction's instant, `tx.At()`; it
+answers a `crud.Outcome` and `crud.Apply` writes it, so the fake applies the
+same function and nothing reads a clock inside a decision
+(xref:decisions.adoc[ADR 0012]). Write tests around examples, refusals and
+invariants with independently chosen expectations.
 
 A reviewer should be able to explain a changed command's inputs, decision,
 state change, effects and failure behaviour from the command and its rule alone.

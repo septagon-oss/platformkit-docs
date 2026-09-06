@@ -31,5 +31,6 @@
 ** xref:decisions/0009-what-is-public.adoc[0009 What is public]
 ** xref:decisions/0010-a-limit-is-a-row.adoc[0010 A limit is a row]
 ** xref:decisions/0011-migration-ownership.adoc[0011 Capabilities own migration progress]
+** xref:decisions/0012-decisions-are-pure.adoc[0012 A command is a pure decision, applied]
 * xref:releases.adoc[Releases]
 * xref:contributing.adoc[Contributing]

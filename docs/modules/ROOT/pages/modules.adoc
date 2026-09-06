@@ -91,8 +91,10 @@ xref:decisions.adoc[ADR 0011].
 . Copy `modules/task`, rename the package and the entity, and delete what your
   capability does not need.
 . Write `contracts/` first: the entity, the events, the permissions, the
-  `Service` interface, and the conformance cases in `<name>test/`. Make the fake
-  pass them.
+  `Service` interface, the commands' decisions as pure functions of the entity
+  and the instant (xref:decisions.adoc[ADR 0012]), and the conformance cases in
+  `<name>test/`. Make the fake pass them by applying the same decisions to
+  memory.
 . Fill `internal/` until the real service passes the same cases against
   Postgres.
 . Declare the `rest.Spec` and the manifest in `module.go`; add the module's SQL.
