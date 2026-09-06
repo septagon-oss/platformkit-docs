@@ -1,0 +1,96 @@
+= 0004 — Events are the job queue
+
+Status: accepted, 2026-09-02. The record is
+{source-tree}/docs/adr/0004-events-are-the-job-queue.md[`docs/adr/0004-events-are-the-job-queue.md`];
+this page is its map and its summary and states nothing the record does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/decisions/0004-events-are-the-job-queue.html" title="ADR 0004 — Events are the job queue" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/decisions/0004-events-are-the-job-queue.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>decisions/0004-events-are-the-job-queue</code> in the record</figcaption>
+</figure>
+++++
+
+== Context
+
+The previous codebase ran background work three ways: a transactional outbox,
+a `river` job queue with its own tables, workers and migrations, and ad-hoc
+goroutines. The outbox and the queue solved the same problem — durable work,
+retried, enqueued atomically with a state change — with two sets of tables to
+migrate and two answers to "why did that not run?".
+
+== Decision
+
+The outbox is the job queue. A module publishes an event in the transaction
+that caused it; the relay moves rows to a transport once a second; a
+subscription runs the handler in a transaction scoped to the event's tenant.
+Asynchronous work is what a subscriber does, and there is no second queue.
+Periodic work is the one thing an outbox cannot express, because nothing
+happened: that is `kit/jobs`, a schedule and an advisory lock, so exactly one
+instance in the cluster runs a job per tick.
+
+== Consequences
+
+* Delivery is at-least-once: the relay publishes and then stamps
+  `published_at`, because the other order loses events and this one repeats
+  them.
+* Handling is exactly-once, and the kernel does it rather than each handler.
+  `Consume` claims `(Event.ID, durable)` in `platformkit_handled` inside the
+  handler's own transaction, before the handler runs; the claim and the
+  handler's writes commit together, so a handler that fails sees the event
+  again and one that succeeded never runs twice. The key includes the
+  subscription because two modules interested in one event are two pieces of
+  work.
+* Enqueueing cannot fail separately from the write it belongs to: both are one
+  `INSERT` in one transaction. Ordering is per stream, not per aggregate.
+* A durable consumer is shared by every worker replica through a JetStream
+  deliver group named after the durable, so each event is still handled once.
+  The stream is reconciled on every subscribe; a retention or storage change
+  refuses the boot, because recreating a stream throws away its messages.
+* Retries are the transport's: an error nacks and the event comes back, slower
+  each time, and both transports stop after `maxDeliveries` with one row in
+  `platformkit_dead_letters`. Nothing redelivers from that table; a row in it
+  is an alert.
+* The relay takes no advisory lock, because `FOR UPDATE SKIP LOCKED` is already
+  the concurrency control; every other periodic job does, and `jobs.Job` says
+  which with `Parallel`. A periodic job that hangs holds its lock, which is what
+  "exactly one instance runs it" costs.
+* One tenant's failure inside `jobs.PerTenant` does not stop the others, and
+  neither does one row's; the errors are joined so the job still reports as
+  failed. Partial progress is the intended outcome.
+
+== Where it lives
+
+* {source-tree}/kit/events/events.go[`kit/events/events.go`] — `Publish` and `PublishFor`, the one `INSERT` into `platformkit_outbox` inside the caller's transaction; `Consume`, which claims each delivery in `platformkit_handled` before the handler runs; the dead-letter write.
+* {source-tree}/kit/events/relay.go[`kit/events/relay.go`] — `Relay`, a batch at a time behind `FOR UPDATE SKIP LOCKED`, publishing before it stamps `published_at`; `Purge`, which forgets published rows and their marks on one week-long window.
+* {source-tree}/kit/events/jetstream.go[`kit/events/jetstream.go`] — the `JetStream` transport: one stream, a durable consumer per subscription with a deliver group named after the durable, reconciliation of consumer and stream, `maxDeliveries` and the backoff ladder.
+* {source-tree}/kit/jobs/jobs.go[`kit/jobs/jobs.go`] — `Job` (`Every` or `Cron`, `Parallel`), `Valid`, the `Scheduler` that takes the lock named after the job before running it, and `PerTenant`.
+* {source-tree}/kit/db/lock.go[`kit/db/lock.go`] — `TryLock`, the session-level advisory lock on a pinned connection.
+* {source-tree}/kit/app/app.go[`kit/app/app.go`] — the worker role: `outbox-relay` every second and `Parallel`, `outbox-purge` by cron, every module's `Jobs` and `Subscriptions` through `Consume`; `validateEvents`, the boot gate.
+* {source-tree}/kit/module/module.go[`kit/module/module.go`] — the `Subscriptions` and `Jobs` manifest fields; `Validate` refuses a job that could not run and a subscription to an event no module emits.
+* {source-tree}/kit/events/events_test.go[`kit/events/events_test.go`] — the publish, relay, consume, exactly-once and redelivery tests below.
+* {source-tree}/kit/jobs/jobs_test.go[`kit/jobs/jobs_test.go`] — the schedule and one-runner tests below.
+
+== Evidence
+
+[source,sh]
+----
+go test ./kit/events ./kit/jobs   # publish, relay, consume, exactly-once,
+                                 # redelivery, dead letters, concurrent relays,
+                                 # JetStream, purge, schedules, one runner
+go test ./kit/events -run 'TestPublishIsPartOfTheTransaction'
+go test ./kit/events -run 'TestAHandlerRunsOnceHoweverOftenTheEventIsDelivered'
+go test ./kit/events -run 'TestConcurrentRelaysEachTakeTheirOwnRows'
+go test ./kit/jobs -run 'TestOnlyOneSchedulerRunsAJob|TestAParallelJobTakesNoLock'
+----
+
+The record is precise about the limit: the claim closes the redelivery hole,
+not every hole, and a handler is still free to be idempotent on its own terms.
+The marks are purged on the same week-long window as the outbox rows they
+recognise, because a mark that outlives its event guards nothing; and a row in
+`platformkit_dead_letters` is an alert, not a queue.

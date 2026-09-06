@@ -1,0 +1,69 @@
+= 0002 — Explicit wiring, no dependency-injection container
+
+Status: accepted, 2026-09-02. The record is
+{source-tree}/docs/adr/0002-explicit-wiring.md[`docs/adr/0002-explicit-wiring.md`];
+this page is its map and its summary and states nothing the record does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/decisions/0002-explicit-wiring.html" title="ADR 0002 — Explicit wiring, no dependency-injection container" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/decisions/0002-explicit-wiring.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>decisions/0002-explicit-wiring</code> in the record</figcaption>
+</figure>
+++++
+
+== Context
+
+The previous codebase composed modules with `uber/fx` behind a 34-field module
+descriptor and eleven layers of materialization, about 5,900 lines between a
+module's `module.go` and `fx.New`, with 32 distinct fx groups and 91 registry
+types. Wiring errors surfaced at boot, as reflection errors naming interfaces
+rather than call sites, and reading the graph meant running the program.
+
+== Decision
+
+`apps/platformkit/main.go` constructs modules in dependency order and passes
+each one a struct of typed dependencies: no container, no groups, no
+registries, no reflection. A module's dependencies are the fields of its `Deps`
+struct, and a missing or mistyped one is a compile error at the construction
+site. Cross-module dependencies remain interfaces declared in the provider's
+`contracts/` package, so a module still depends on a capability rather than an
+implementation and a fake still satisfies the same conformance suite as the
+real thing; what is deleted is the machinery that used to connect them.
+
+== Consequences
+
+* The wiring graph is readable top to bottom in one file, and `go build`
+  checks it.
+* Startup order is written down instead of derived, which makes it reviewable
+  and makes cycles impossible to express.
+* `main.go` grows with the catalog, roughly one line per module. That is the
+  price of the graph being visible, and the `apps/` line ceiling caps it.
+* Lifecycle hooks (start/stop) are ordinary method calls the kernel makes, not
+  framework callbacks.
+
+== Where it lives
+
+* {source-tree}/apps/platformkit/main.go[`apps/platformkit/main.go`] — `run` loads the configuration, calls `compose`, and hands the module list to `app.New` with the tenant, authorizer and authenticator implementations the kernel cannot choose for itself.
+* {source-tree}/apps/platformkit/modules.go[`apps/platformkit/modules.go`] — `compose`: one `Module(Deps{…})` call per module in dependency order, `audit` next to last and `admin` last, and the adapters (`recipients`, `tenantHosts`, `firstAdmin`, `seedRoles`) that satisfy one module's `contracts/` interface over another module's service.
+* {source-tree}/kit/module/module.go[`kit/module/module.go`] — `module.Module`, the manifest a constructor returns; `module.Validate`, which checks names, permissions, events, subscriptions, nav entries and jobs and reports every violation in one error.
+* {source-tree}/kit/app/app.go[`kit/app/app.go`] — `app.New` expands and validates the composition before anything is opened; `Run` lets every module register its routes and runs `api.ValidateDeclarations`, `validatePermissions` and `validateEvents` before anything listens.
+* {source-tree}/modules/auth/module.go[`modules/auth/module.go`] — `auth.Deps`, seven typed fields — four interfaces from `contracts/` packages, a `jobs.TenantLister`, the `OIDC` provider and `PublicHost` — every one a value `main` decides; `Module(deps Deps)` returns the service and the manifest. Every module follows the shape, and an empty `Deps` is a module that needs nothing.
+* {source-tree}/scripts/check_imports.sh[`scripts/check_imports.sh`] — every cross-module import is a `contracts/` import, and `apps/` never reaches a module's `internal/`; it is the last line of `make check`.
+
+== Evidence
+
+[source,sh]
+----
+grep -r 'go.uber.org/fx' go.mod   # no output: the dependency does not exist
+----
+
+The record names no test, because the check is the compiler: a missing or
+mistyped `Deps` field fails `go build` at the construction site before any
+test runs. What the compiler cannot see, a module importing another module's
+implementation rather than its `contracts/`, is what
+`scripts/check_imports.sh` refuses.

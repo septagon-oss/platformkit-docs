@@ -1,0 +1,72 @@
+= Content
+
+A page or a post is what a tenant's public site is made of: a name it is
+reached by, a title, a body in Markdown and a status that decides whether the
+site serves it. The module promises the lifecycle — draft, published, archived
+— and the events that announce it: published means published at a time, a page
+is published once, and a reader with no session gets the rendered page only
+while it is published, with raw HTML left out and the rest sanitised on every
+read. There are no versions and no stored HTML; both are decisions and not
+omissions. It takes no dependencies at all: content belongs to a tenant by
+carrying its id, which row-level security matches on, and the author comes off
+the request's own context. The module is
+{source-tree}/modules/content[`modules/content`]; this page states nothing that
+tree does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/features/content.html" title="Content — the module and its seams" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/features/content.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>features/content</code> in the record</figcaption>
+</figure>
+++++
+
+== What it promises
+
+[cols="1,3"]
+|===
+| Entity | `Content` in {source-tree}/modules/content/contracts/content.go[`contracts/content.go`]: a slug, unique within the tenant while not deleted and normalised on every write by `Slugify` — lower case, accents folded, words joined by single dashes, nothing outside `a-z`, `0-9` and the dash, at most 200 characters; a title of at most 200 characters; a body in Markdown, stored as it was written and at most `MaxBody` (262144) bytes; a kind (`page`, which stands on its own, or `post`, which is dated and belongs in a list; `post` by default); a status (`draft` by default, `published`, `archived`); `publishedAt`, set exactly when the status is `published`; and `author`, stamped from the caller on the context when the row is created. `status`, `publishedAt` and `author` are `Immutable` to a `PATCH`. One row per page or post in `contents` ({source-tree}/migrations/000017_content.up.sql[`migrations/000017_content.up.sql`]): `FORCE ROW LEVEL SECURITY`, a `CHECK` that keeps `published` and `published_at` together, a `CHECK` on the body's bytes, a unique index on `(tenant_id, slug)` while not deleted, so a delete releases the name, and a partial index over the published rows for the public read; `author_id` is a user id with no foreign key to `users`.
+| Events | `content.content.created`, `content.content.updated`, `content.content.deleted` from the generated routes; `content.published` from `Publish`, `content.unpublished` from `Unpublish`, `content.archived` from `Archive`, each once — a command repeated on content already in that state changes nothing and publishes nothing. The three lifecycle events carry one payload, `Moved` in {source-tree}/modules/content/contracts/events.go[`contracts/events.go`]: the content id, its slug, kind and status, and when it moved.
+| Permissions | `content:read` — the list, the reads and the navigation entry; `content:manage` — the writes and the three commands ({source-tree}/modules/content/contracts/permissions.go[`contracts/permissions.go`]). Publishing is not a permission of its own: whoever may change what a page says may decide that it says it in public. The public read declares `httpx.Public()`.
+| Service | `contracts.Service`: `Publish`, `Unpublish`, `Archive` and `Public`; every command takes the caller's transaction, so the state change and its event commit together, and answers with kit/crud's errors — `ErrNotFound` for content this tenant does not have, `ErrConflict` for a state that refuses the command. The fake and the conformance suite live in {source-tree}/modules/content/contracts/contenttest[`contracts/contenttest/`].
+|===
+
+== Routes and screens
+
+* `GET`/`POST /api/v1/content/contents` and `GET`/`PATCH`/`DELETE /api/v1/content/contents/\{id}` — the five routes `rest.Spec.Mount` registers, with soft delete; a create or a patch that names `status`, `publishedAt` or `author` is refused with the route that owns the field.
+* `POST /api/v1/content/contents/\{id}/publish` — serves it to anybody and records when; what is already published changes nothing and the publication time does not move, because a page has one; archived content is refused with a conflict, because it is taken out of the archive first. The three commands are in {source-tree}/modules/content/internal/handler.go[`internal/handler.go`].
+* `POST /api/v1/content/contents/\{id}/unpublish` — takes it back to a draft, from published or from archived, and clears the publication time with it; a draft again changes nothing.
+* `POST /api/v1/content/contents/\{id}/archive` — keeps it and serves it to nobody; archiving twice changes nothing.
+* `GET /api/v1/content/public/\{slug}` — the one read a reader with no session makes, `httpx.Public()`, and a sibling of the collection rather than a route under it so that everything under `/api/v1/content/contents` needs `content:read`. It answers with `Page` — the slug, the title, the kind, the body rendered from Markdown and sanitised, and `publishedAt` — and not the entity: the author, the timestamps and the status are not a reader's business. A draft, an archived page and a slug nobody has used are the same `404`; a slug outside `Slugify`'s grammar is a `422` at the door; a host that resolves to no tenant is a `404`. The response carries a weak `ETag` from the row's `updated_at`, and an `If-None-Match` that names it is answered `304` with no body, so a reader who already has the page does not pay for rendering it again. The renderer is {source-tree}/modules/content/internal/render.go[`internal/render.go`]: goldmark with GFM and raw HTML left out, a protocol-relative link rewritten to say which origin it goes to, and bluemonday's user-generated-content policy over the result.
+* Screens: the generated list, detail and forms under `/admin/content/contents`, with the body as a textarea and hidden from the list, and the navigation entry "Content" for anyone with `content:read` ({source-tree}/modules/content/module.go[`module.go`]). Hand-written pages: none.
+
+== Events, jobs and subscriptions
+
+* Publishes the six events above; `HookEvents` is nil, because nothing publishes from a hook — the three commands declare the lifecycle events they publish, so the boot gate can check them against the manifest.
+* Jobs: none — `Jobs: nil` in `module.go`: nothing about a page happens because time passed.
+* Subscriptions: none — `Subscriptions: nil`: the module has no opinion about anybody else's events, and a site that reads it takes the read route.
+
+== What it needs
+
+[cols="1,1,2"]
+|===
+| `Deps` field | Interface | Supplied by
+| none | `content.Deps{}` is empty | `apps/platformkit/modules.go` calls `content.Module(content.Deps{})`, after billing and before site; the private application's registry builds it the same way, with no requirements
+|===
+
+Configuration: none.
+
+== Who uses it
+
+* No module takes its contracts; the tests and the applications do. The site module names a `HomeSlug`, the slug of the content served at `/`, and validates the same slug grammar, but {source-tree}/modules/site/contracts/site.go[`modules/site/contracts/site.go`] says it does not import the module that serves it, and nothing else in the workspace reaches the public read.
+* The admin and the native shell reach it through `httpx.Resource`, not through `contracts/`.
+
+== Verification
+
+* `go test ./modules/content/...` — the fake and the real service pass one conformance suite: publishing records when and a second publish does not move it, archived content is not published from the archive, unpublishing clears the time and takes content out of the archive, only published content is served publicly, a slug is stored and looked up the same way, and an unknown id is not found. The internal tests ({source-tree}/modules/content/internal/service_test.go[`internal/service_test.go`]) prove the commands publish in the caller's transaction and say nothing when repeated, that the database keeps `published` and its time together against an `UPDATE` behind the module's back, that a slug is unique within the tenant and released by a delete, that the author is the caller and not the body, and that `Render` strips scripts, event handlers and `javascript:` links. The module tests ({source-tree}/modules/content/module_test.go[`module_test.go`]) prove over HTTP that a `PATCH` refuses the three fields a route owns and names each, that the public route serves published content to anybody and carries neither `body`, `author`, `status` nor a script, that the page is conditional on its tag and an edit moves the tag, that a body has a ceiling and a title is counted in characters, that a slug survives its language, and that a protocol-relative link is rewritten.
+* No browser journey: `make e2e` exercises tasks only ({source-tree}/e2e/admin-tasks.spec.ts[`e2e/admin-tasks.spec.ts`]).
+* Not proven: the generated content screens in a browser; a public site reading the public route, which nothing in the workspace does yet; the events on a live NATS fleet.

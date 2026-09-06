@@ -1,0 +1,89 @@
+= 0011 — Capabilities own migration progress
+
+Status: accepted for the clean rebuild; supersedes the global ledger in
+{source-tree}/docs/adr/0009-what-is-public.md[ADR 0009]. The record is
+{source-tree}/docs/adr/0011-migration-ownership.md[`docs/adr/0011-migration-ownership.md`];
+this page is its map and its summary and states nothing the record does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/decisions/0011-migration-ownership.html" title="ADR 0011 — Capabilities own migration progress" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/decisions/0011-migration-ownership.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>decisions/0011-migration-ownership</code> in the record</figcaption>
+</figure>
+++++
+
+== Context
+
+A composed client had reached migration 2003. Adding public migration 23, or
+enabling catalog migration 1001, returned success while silently skipping the
+new SQL: one scalar version cannot describe independently evolving
+capabilities. The old runner, its flattened filesystem, its `(version, dirty)`
+ledger and its down files are removed rather than converted; per-owner copies
+of the previous engine would have fixed the numbering but kept separate
+dirty-state bookkeeping and needed integrity tracking added beside it.
+
+== Decision
+
+`db.Migrate` accepts ordered `MigrationSource` values, a stable owner and its
+filesystem; `kit/app` supplies the foundation first, then module manifests in
+composition order, and the module name already identifies ownership, so no
+registry is added. One `schema_migrations` table records `(owner, version)`,
+filename, SHA-256 and application time for each committed file, and there are
+no global version ranges. A database advisory lock serialises the whole
+composition, each file executes inside a transaction with its history insert,
+and failure or cancellation rolls both back so a retry reads committed history
+and resumes.
+
+== Consequences
+
+* All selected histories are validated before pending SQL runs: a changed or
+  missing applied file, a duplicate identity or an insertion before an applied
+  version fails, and earlier successful files remain committed after a failure.
+* An omitted owner retains its data and history for later re-enablement, and
+  the application role receives no privileges on the history table.
+* Files are `<positive-version>_<name>.up.sql`, ordered numerically within an
+  owner, and contain transactional PostgreSQL SQL: they must not manage
+  transactions or run nontransactional operations such as
+  `CREATE INDEX CONCURRENTLY`, and cross-capability schema dependencies follow
+  the application's composition order.
+* This is a fresh baseline: nothing converts the old ledger or preserves old
+  installations, so adopting the rebuild means provisioning a clean database,
+  and once the baseline is used, applied files stay unchanged and corrections
+  are appended as new revisions.
+* A later breaking schema change means stopping old processes before migration;
+  a rolling release needs an explicitly tested schema both running versions can
+  use; an older artifact missing applied migrations fails startup; downgrading
+  an image is not a schema rollback.
+
+== Where it lives
+
+* {source-tree}/kit/db/migrate.go[`kit/db/migrate.go`] — `db.Migrate` and `db.MigrationSource`: the advisory lock, the `schema_migrations` table with its grants revoked, the history validation, and one transaction per file with its history row.
+* {source-tree}/kit/db/migration_files.go[`kit/db/migration_files.go`] — reads every `<version>_<name>.up.sql` before connecting: a valid, unrepeated owner, a positive unrepeated version, and the SHA-256 of the bytes that run.
+* {source-tree}/kit/app/migrations.go[`kit/app/migrations.go`] — `app.MigrationSources(mods)`: the foundation first, then each module's `Migrations` under its `Name`, in composition order.
+* {source-tree}/kit/module/module.go[`kit/module/module.go`] — the `Migrations fs.FS` field of a manifest, whose versions are local to the module.
+* {source-tree}/migrations/embed.go[`migrations/embed.go`] — `migrations.Source`, the foundation's append-only history as owner `platformkit`, one source in this change.
+* {source-tree}/kit/app/app.go[`kit/app/app.go`] — `App.Run` migrates in every role before anything listens, as {source-tree}/docs/adr/0005-roles-and-who-migrates.md[ADR 0005] decides.
+
+== Evidence
+
+[source,sh]
+----
+go test ./kit/db -run 'TestMigrationOwnersAdvanceIndependently|TestFailedMigrationRollsBackAndCanBeRetried'
+go test ./kit/db -run 'TestMigrationHistoryIsAppendOnly|TestConcurrentMigrationsApplyEachFileOnce'
+go test ./kit/db -run 'TestMigrationCancellationRollsBackAndReleasesTheLock|TestMigrateIsIdempotent'
+go test ./kit/app -run 'TestMigrationSourcesFollowComposition|TestBootMigratesAndServes'
+----
+
+The record names {source-tree}/kit/db/migrate_test.go[`kit/db/migrate_test.go`]
+rather than commands: it covers late module installation, upstream advancement,
+retained data, disable/re-enable, immutable history, numeric order, concurrent
+startup, failure/retry, cancellation and ledger permissions, and
+{source-tree}/kit/app/app_test.go[`kit/app`] exercises the same source
+collection through a real application boot. What it deliberately does not
+claim: the runner is not a SQL parser or a sandbox for untrusted SQL, so the
+file contract above is checked in review.

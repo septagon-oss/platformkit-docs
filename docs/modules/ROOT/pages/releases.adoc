@@ -17,11 +17,13 @@ separately.
 
 == Consumers
 
-The private catalog and clients repositories pin the public module by tag.
-Between tags they may carry a `replace` directive to a sibling checkout, and
-the runbook's last section is the two commands that remove it once the tag
-exists. Migration version ranges are global across the three: the public
-repository numbers from 1, the catalog from 1001, clients from 2001.
+A releasable private consumer pins a published version of the public module.
+During development its `go.mod` may select a sibling checkout through
+`replace`; a build that succeeds with the replacement does not validate the
+version named in `require`, so the consumer's own release procedure tests the
+published dependency without a machine-local path. Each migration owner
+numbers its own history; there are no global version ranges across
+repositories (xref:decisions.adoc[ADR 0009] and ADR 0011).
 
 == The 0.x line
 

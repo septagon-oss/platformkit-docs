@@ -1,0 +1,69 @@
+= 0001 — One repository
+
+Status: accepted, 2026-09-02. The record is
+{source-tree}/docs/adr/0001-one-repository.md[`docs/adr/0001-one-repository.md`];
+this page is its map and its summary and states nothing the record does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/decisions/0001-one-repository.html" title="ADR 0001 — One repository" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/decisions/0001-one-repository.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>decisions/0001-one-repository</code> in the record</figcaption>
+</figure>
+++++
+
+== Context
+
+PlatformKit was 67 git repositories in one workspace: a kernel, a module
+catalog, a design system, a dozen `pk-*` libraries, client overlays, infra. A
+change to a contract meant a commit in four repositories in a fixed order, and
+2,122 packages were linked into the one binary that consumed them. The split
+bought nothing: there was one consumer of almost every repository, and no
+repository was released on its own cadence.
+
+== Decision
+
+One public repository, `github.com/septagon-oss/platformkit`, holds the kernel,
+reference modules, UI stack and reference app in a single Go module; shared
+implementations live as ordinary packages under `ui/`, `design/` and `kit/`.
+Commercial capabilities and client applications remain private consumers, as
+{source-tree}/docs/adr/0009-what-is-public.md[`docs/adr/0009-what-is-public.md`]
+describes. Package count is one reviewed cost of composition: the package gate
+checks the ceiling in `packages-budget.json`, and a new package must justify
+its ownership and maintenance cost rather than exist only to bridge
+repositories.
+
+== Consequences
+
+* One `go.mod`, one `Makefile`, one CI workflow, one version.
+* A contract change is one commit and one compile error set.
+* Nothing enforces a boundary by version string any more, so the boundaries
+  that remain (`contracts/`, `internal/`) are the ones the compiler can check.
+* Independent release of a single library is no longer possible. No consumer
+  wanted it.
+
+== Where it lives
+
+* {source-tree}/go.mod[`go.mod`] — the one module, `module github.com/septagon-oss/platformkit`; every package under `kit/`, `modules/`, `ui/`, `design/` and `apps/` shares that path.
+* {source-tree}/ARCHITECTURE.md[`ARCHITECTURE.md`] — the implemented boundaries of the one tree: the public repository owns the runtime and shared UI, a module is `contracts/`, `internal/` and `module.go`, and shared code belongs in `kit/` only when it is runtime infrastructure rather than a business rule.
+* {source-tree}/.github/workflows/release.yml[`.github/workflows/release.yml`] — the one release: a `v*` tag that is on `main` runs `make check` and `make e2e` against the tagged tree, then builds and pushes the image, attaches its SBOM and creates the GitHub release.
+* {source-tree}/packages-budget.json[`packages-budget.json`] — the current package ceiling, one number the gate reads and `--write` lowers when the count falls.
+* {source-tree}/scripts/check_packages.sh[`scripts/check_packages.sh`] — the package gate: it counts the first-party packages `go list -deps ./apps/platformkit` links into the reference app and fails when the count exceeds the ceiling.
+* {source-tree}/Makefile[`Makefile`] — `check-packages` runs the script and is a prerequisite of `check`, so the gate is part of everything a pull request must pass.
+
+== Evidence
+
+[source,sh]
+----
+make check-packages   # checks the current ceiling in packages-budget.json
+----
+
+The record names one command and no test. `check-packages` is a prerequisite
+of `make check`, which CI runs on every pull request and `release.yml` runs on
+the tagged tree, so the ceiling is checked wherever the gates run. What the
+record gives up on purpose is the independent release of a single library; no
+consumer wanted it.

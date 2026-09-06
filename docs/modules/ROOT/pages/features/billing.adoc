@@ -1,0 +1,69 @@
+= Billing
+
+A plan is something the installation sells, priced per month or per year, and
+a subscription is a tenant's enrollment in one: a tenant is the customer, so it
+has one. The module promises that the price list is the operator's and every
+tenant reads the same one, that the price a customer agreed to is what it is
+billed until the next period, and that money is never taken inside a database
+transaction. The module is
+{source-tree}/modules/billing[`modules/billing`]; this page states nothing that
+tree does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/features/billing.html" title="Billing — the module and its seams" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/features/billing.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>features/billing</code> in the record</figcaption>
+</figure>
+++++
+
+== What it promises
+
+[cols="1,3"]
+|===
+| Entity | `Plan` in {source-tree}/modules/billing/contracts/billing.go[`contracts/billing.go`]: a code, a name, a price in the currency's minor unit, an ISO 4217 currency, an interval (`month`, `year`), feature names, and `active`, which gates enrollment and not existence; nothing is `Immutable`, because a change applies from the next period. `Subscription`, in the same file: the plan, a status (`trial`, `active`, `past_due`, `cancelled`), the period being served, `cancelAtPeriodEnd`, the price and currency stamped when the period started, `trialUsedAt`, the dunning state (`attemptCount`, `pastDueSince`) and `anchorDay`, the day of the month it bills on. One row per tenant, kept by a unique index in {source-tree}/migrations/000016_billing.up.sql[`migrations/000016_billing.up.sql`]; {source-tree}/migrations/000022_billing_anchor.up.sql[`migrations/000022_billing_anchor.up.sql`] adds the anchor.
+| Events | `billing.plan.created`, `billing.plan.updated`, `billing.plan.deleted` from the generated routes; `billing.subscribed` from subscribe; `billing.cancelled` from cancel, and from the renewal when the grace period runs out, with reason `dunning`; `billing.renewed` from a free renewal or a settled charge; `billing.past_due` from the first charge that does not settle, and not from the nights after it.
+| Permissions | `billing:read` — the plan list and reads, the subscription read and the navigation entry; `billing:manage` — subscribe and cancel; `billing:catalog` — the plan writes, declared `Operator: true`, so the kernel refuses them at every tenant but the operator's own before it asks the roles table anything, while `billing_plans` is read by every tenant under a `USING (true)` policy ({source-tree}/docs/adr/0008-prices-are-the-operators.md[`docs/adr/0008`]).
+| Service | `contracts.Service`: `Current`, `Subscribe`, `Cancel`, `Renew`, `Settle`; `contracts.PaymentProvider`: `Charge`, which must honour the charge's idempotency key, with `Manual` as the one implementation here; the fake and the conformance suite live in {source-tree}/modules/billing/contracts/billingtest[`contracts/billingtest/`].
+|===
+
+== Routes and screens
+
+* `GET`/`POST /api/v1/billing/plans` and `GET`/`PATCH`/`DELETE /api/v1/billing/plans/\{id}` — the five routes `rest.Spec.Mount` registers, with soft delete; the three writes carry `httpx.OperatorPermission`, and the delete hook `RefuseWhileSubscribed` counts live subscriptions across every tenant under system access and refuses, with `409`, a plan somebody is still on.
+* `GET /api/v1/billing/subscription` — the tenant's one subscription, from `rest.Singleton`, `404` until it has subscribed; there is no `PUT`, because a customer must not write its own period or its own price.
+* `POST /api/v1/billing/subscription/subscribe` and `…/cancel` — the two commands in {source-tree}/modules/billing/internal/handler.go[`internal/handler.go`], under `billing:manage`: the same plan again changes nothing, a different plan takes effect at the next renewal and is refused while the subscription owes for a period, and the trial is issued once per tenant; cancelling ends the subscription at the end of the period or now, and now is refused while a period is owed for.
+* Screens: the generated list, detail and forms under `/admin/billing/plans`, writable only at the operator's host, and the navigation entry "Billing" for anyone with `billing:read`. The subscription registers no resource: a read-only singleton would be a screen whose forms nobody may submit. Hand-written pages: none.
+
+== Events, jobs and subscriptions
+
+* Publishes the seven events above; the two commands declare `billing.subscribed` and `billing.cancelled` so the boot gate can check them.
+* Jobs: `Renew`, named `billing-renew`, at a quarter past two every morning unless `Deps.RenewEvery` says otherwise, through `jobs.PerTenant` ({source-tree}/modules/billing/internal/renew.go[`internal/renew.go`]): one transaction asks the service what is owed, the charge goes to the provider with no transaction open, and a second transaction records the receipt through `Settle`. A free plan renews itself, a cancelled subscription ends when its period does, and one past due for longer than `GraceDays` (seven) is cancelled.
+* Subscriptions: none, written out as a decision: what a plan entitles somebody to is the consuming module's business.
+
+== What it needs
+
+[cols="1,1,2"]
+|===
+| `Deps` field | Interface | Supplied by
+| `Tenants` | `jobs.TenantLister` | the tenant module's `Active` lister, passed in `apps/platformkit/modules.go` and in the flagship registry
+| `Payments` | `contracts.PaymentProvider` | `billing.Manual()` in `apps/platformkit/modules.go`, which records what is owed and settles nothing, so a deployment without a processor still marks a customer past due; a private application hands billing and its payment capability one processor-backed provider, or in local development `billing.Manual()` wrapped to settle; `Module` panics without one
+| `RenewEvery` | `time.Duration` | zero, meaning the nightly schedule; a test sets an interval
+|===
+
+Configuration: none.
+
+== Who uses it
+
+* A private payment provider — its `Provider` embeds `contracts.PaymentProvider` and it builds `contracts.Charge`, `Receipt` and `Key`, so one object is `Deps.Payments` here and the provider there; it satisfies this module more than it calls it.
+* No public module takes its contracts; the applications do, for `billing.Manual()` and to name `billing:catalog` among the operator grants `auth.SeedRoles` seeds for a new tenant.
+* The admin and the native shell reach it through `httpx.Resource`, not through `contracts/`.
+
+== Verification
+
+* `go test ./modules/billing/...` — the fake and the real service pass one conformance suite: the trial once per tenant, a debt that survives a plan change, a cancel and a resubscribe, re-pricing from the next period, a pending receipt, the dunning ceiling and the anchored billing day. The internal tests prove the commands publish in the caller's transaction, one subscription per tenant, that a rolled-back command leaves nothing, and that the renewal charges with no transaction open. The module tests prove the price list is the operator's over HTTP and through the generated screen's resource, that a plan somebody is on cannot be deleted, that `active` is the caller's to say, and that a module without a provider does not compose.
+* No browser journey: `make e2e` exercises tasks only.
+* Not proven: a provider that speaks to a payment processor, which lives outside this repository; the schedule itself, which the test replaces with an interval.

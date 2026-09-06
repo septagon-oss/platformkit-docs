@@ -1,0 +1,127 @@
+= 0006 — System access is a token handed to a module at wiring time
+
+Status: accepted, 2026-09-02. The record is
+{source-tree}/docs/adr/0006-system-access-is-a-token.md[`docs/adr/0006-system-access-is-a-token.md`];
+this page is its map and its summary and states nothing the record does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/decisions/0006-system-access-is-a-token.html" title="ADR 0006 — System access is a token handed to a module at wiring time" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/decisions/0006-system-access-is-a-token.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>decisions/0006-system-access-is-a-token</code> in the record</figcaption>
+</figure>
+++++
+
+== Context
+
+ADR 0003 makes cross-tenant access a type: `db.Tx[db.System]` cannot be
+produced outside `kit/db`, and `db.RunSystem` needs a `tenancy.SystemToken`
+that only `kit/internal/syscap` can mint. Until E3 that was enough, because the
+only callers were kernel ones: host resolution, the outbox relay, the periodic
+job that walks the tenants. A tenant is a row that belongs to no tenant, and
+creating one, listing them or suspending one cannot happen inside a tenant
+transaction, so a module now needs the capability, and the question is which
+door it comes through. The record rejects exporting the minting function (a
+capability everyone can mint is not a capability), a field in `Deps` minted in
+`main` (`main` composes modules before `kit/app` opens anything, so it has
+nothing to mint from and nothing to mint with), and a kernel-mounted "system
+route" kind (a second registration path beside `httpx.Register`, and a door
+that satisfies the boot gate and evades the enforcement).
+
+== Decision
+
+The kernel hands the capability to a module at the one moment it is being
+wired: `Module.Routes` receives the `+*httpx.API+`, and `+(*API).SystemToken()+`
+returns a token there, which the handlers that need it close over. Three
+things follow, each a property rather than a convention: the set of modules
+that cross tenants is one grep, `grep -rn 'SystemToken()' modules/`, next to
+the manifest a reviewer is already reading; a handler holds no ambient
+authority; and the transaction is a second one, because `db.RunSystem` refuses
+to widen a tenant transaction into a system one and `db.Detached` is the call
+that says a new one is being opened, whose commit survives a request that
+afterwards fails. `kit/app.Bootstrap` is the same decision at the other end of
+the life cycle: an installation with no tenants has no tenant transaction to do
+its first write in, so the kernel opens a system one and hands it to
+`platformkit bootstrap`.
+
+The record keeps the capability apart from the authorization. The token says a
+module may open a cross-tenant transaction; it says nothing about who may make
+the request that reaches the handler holding it, and the two were confused
+once, with a real consequence. The control plane is served on every tenant's
+host, because an installation has no host of its own, and the permission
+`tenant:manage` did not keep it safe: a permission is a string in a tenant's
+own `roles` table, every tenant's `admin` role holds `+'*'+` by construction, and
+E3.1's review signed in as a second customer's administrator and listed,
+created and suspended tenants. So a route may declare
+`httpx.OperatorPermission` instead of `httpx.Permission`, with the permission
+declared `Operator: true` in the manifest that defines it. `tenancy.Tenant`
+carries `Operator`, one row in `tenants` has it (the one `platformkit
+bootstrap` created), and the authorize middleware answers 403 to an operator
+grant on any other tenant before any roles table is consulted; `auth.Grants`
+lets the wildcard satisfy an ordinary permission and never an operator one; and
+`kit/app` refuses to start when a route and the manifest that defines its
+permission disagree about the kind, naming both. `NewTenant.Operator` is
+`json:"-"`, so the create route has no field to fill in however the body is
+written, and a unique partial index says there is at most one.
+
+== Consequences
+
+* Every module that crosses tenants writes one line where the manifest is
+  read, so the set is one grep; the token is obtained in `Module.Routes` and
+  closed over by the handlers that need it, so a handler holds no ambient
+  authority.
+* A control-plane write inside a failing request is kept. It is the one place
+  in the application where that is true, and it is deliberate: the alternative
+  is a tenant that exists in one table and not another.
+* The tenant module's routes are hand-written rather than a `rest.Spec`,
+  because a `crud.Entity` carries a `tenant_id` and a tenant does not. That is
+  what the exception costs; the errors are still `kit/crud`'s, through
+  `crud.Classify`, so a 404 means the same thing here.
+* `tenants` and `tenant_hosts` are declared exempt from tenant scoping, in the
+  comment the convention uses, and they are not unprotected: a system
+  transaction sees everything and an ordinary tenant transaction sees exactly
+  one row, its own.
+* The `Operator` column is written by the bootstrap and by nothing else.
+* The gate is a grep and a review, not a privilege: the same shape as
+  `scripts/check_gucs.sh`, and for the same reason ADR 0003 gives.
+
+== Where it lives
+
+* {source-tree}/kit/internal/syscap/syscap.go[`kit/internal/syscap/syscap.go`] — `SystemToken`, an interface with an unexported method and an unexported implementation, and `NewSystemToken`, the only expression in the program that produces one; under `kit/internal`, so only packages inside `kit/` can import it, and an empty reason panics at the minting site.
+* {source-tree}/kit/tenancy/tenancy.go[`kit/tenancy/tenancy.go`] — `tenancy.SystemToken`, the alias through which a caller names the capability; `Tenant.Operator` and `Grant`, the two halves of the operator question.
+* {source-tree}/kit/tenancy/tenancy_test.go[`kit/tenancy/tenancy_test.go`] — `TestSystemTokenIsMintedByTheKernel` (the zero token is nil, the one forgery Go allows and the one `db.RunSystem` refuses) and `TestAReasonlessTokenIsRefusedWhereItIsMinted`.
+* {source-tree}/kit/httpx/httpx.go[`kit/httpx/httpx.go`] — `+(*API).SystemToken()+`, a method on the value the kernel passes to `Module.Routes`, and the package comment that describes the door a second registration path would open.
+* {source-tree}/kit/httpx/middleware.go[`kit/httpx/middleware.go`] — `httpx.ConnFrom`, the request's connection and the second half of the token; the authorize middleware's refusal of an operator grant on any tenant but the operator's, before the `Authorizer` is asked.
+* {source-tree}/kit/httpx/auth.go[`kit/httpx/auth.go`] — `httpx.OperatorPermission`, the declaration a control-plane route makes instead of `httpx.Permission`.
+* {source-tree}/kit/db/tx.go[`kit/db/tx.go`] — `db.RunSystem`, which refuses a nil token and refuses to widen a tenant transaction into a system one; `db.Detached`, the call that says a second transaction is being opened, and its documented consequence; `db.Lazy`, the request's pending transaction, which takes a kernel token for the same reason.
+* {source-tree}/kit/events/events.go[`kit/events/events.go`] — `events.PublishFor`, the one place in the program where the tenant an event belongs to is an argument rather than a property of the transaction.
+* {source-tree}/kit/app/bootstrap.go[`kit/app/bootstrap.go`] — `app.Bootstrap`, the one cross-tenant transaction of an installation with no tenants, handed to `platformkit bootstrap`.
+* {source-tree}/kit/app/app.go[`kit/app/app.go`] — `validatePermissions`, the boot gate that refuses a route and a manifest that disagree about whether a permission is the operator's, naming both.
+* {source-tree}/kit/jobs/jobs.go[`kit/jobs/jobs.go`] — `jobs.PerTenant` and `TenantLister`: the periodic job that walks the tenants, one of the kernel callers that mint their own token.
+* {source-tree}/modules/tenant/module.go[`modules/tenant/module.go`] — the manifest: `Routes` takes `api.SystemToken()` at the one moment the kernel offers it, and `tenant:manage` is declared `Operator: true`.
+* {source-tree}/modules/tenant/internal/handler.go[`modules/tenant/internal/handler.go`] — `RegisterRoutes`, the hand-written control-plane routes, each declared `httpx.OperatorPermission` and each opening a system transaction on `db.Detached` with `httpx.ConnFrom` and the token; `Bootstrap`, the one writer of `Operator`.
+* {source-tree}/modules/tenant/contracts/tenant.go[`modules/tenant/contracts/tenant.go`] — `NewTenant.Operator` is `json:"-"`; `Active`, the adapter that lets the periodic jobs walk the tenants being served.
+* {source-tree}/modules/auth/contracts/auth.go[`modules/auth/contracts/auth.go`] — `auth.Grants`: the wildcard satisfies an ordinary permission and never an operator one.
+* {source-tree}/migrations/000012_operator.up.sql[`migrations/000012_operator.up.sql`] — the `operator` column on `tenants` and the unique partial index that says there is at most one.
+* {source-tree}/migrations/000006_tenant.up.sql[`migrations/000006_tenant.up.sql`] — `tenants` and `tenant_hosts`, declared exempt from tenant scoping in the comment the convention uses.
+
+== Evidence
+
+[source,sh]
+----
+grep -rn 'SystemToken()' modules/ apps/   # every cross-tenant module, in one list
+go test ./modules/tenant/... -run 'TestATenantTransactionSeesOnlyItsOwnRow'
+go test ./modules/auth/... -run 'TestASessionFromAnotherTenantIsNotASessionHere'
+----
+
+The record is precise about what it does not claim. The wiring moment is where
+the token is obtained, not a promise that it is unreachable afterwards: a
+module that kept the `+*httpx.API+` in a field could call the method later, and
+the first version of the record said "cannot acquire it later", which it names
+as an overclaim. What is true is the property the design was chosen for, that
+every module crossing tenants writes one line where the manifest is read; the
+gate is a grep and a review, not a privilege.

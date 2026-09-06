@@ -1,0 +1,76 @@
+= Admin shell
+
+The admin shell is the pages a person sees, as opposed to the routes a program
+calls. It writes almost no screens: a resource's list, detail and form come from
+the entity's schema, and the shell composes the seven pages `ui/screens`
+generates for every resource with its own chrome, frame and navigation, adds the
+five pages no schema describes — the sign-in page, the dashboard, the health
+page, the component gallery and the tenant switcher — and serves the same
+knowledge as JSON at `/api/v1/admin/resources` for a shell that is not a
+browser. It is composition only, and it is composed last: a module mounted after
+it would register a resource no screen was generated for. The module is
+{source-tree}/modules/admin[`modules/admin`]; this page states nothing that tree
+does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/features/admin.html" title="Admin — the module and its seams" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/features/admin.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>features/admin</code> in the record</figcaption>
+</figure>
+++++
+
+== What it promises
+
+[cols="1,3"]
+|===
+| Entity | None: there is no `contracts/` directory, and the shell owns no data. What it renders is every `httpx.Resource` another module's `rest.Spec` registered, read from `api.Resources()` in {source-tree}/modules/admin/internal/mount.go[`internal/mount.go`] and sorted by screen path.
+| Events | None: `Events: nil` in {source-tree}/modules/admin/module.go[`module.go`].
+| Permissions | None of its own: `Permissions: nil`, because every page is guarded by a permission the module that owns the data defined. A generated screen takes its resource's `Read` permission and `WriteAuth()`; the dashboard, the health page, the gallery and the catalog take `httpx.SignedIn()`; the tenant switcher takes `httpx.OperatorPermission(tenantcontracts.PermissionTenantManage)`; the sign-in page is `httpx.Public()`.
+| Service | None. `internal.Mount(api, Shell)` is the whole implementation: the `Shell` value carries the navigation, the authorizer, the tenant service, the system token and the theme. There is no fake and no conformance suite.
+|===
+
+== Routes and screens
+
+* `GET /admin/login` — the sign-in form, public. It posts to the auth module's `/api/v1/auth/login` and sends the person on to a `next` that `httpx.LocalPath` accepts, otherwise to `/admin`.
+* `GET /admin` — the dashboard: one card per resource the caller may read, with the count its own list reports, and whether the database check passes.
+* `GET /admin/health` — the checks behind `/ready`, one at a time.
+* `GET /admin/_gallery` — every component rendered once from `components.Gallery()`; the one page that links `gallery.css`.
+* `GET /admin/tenant/tenants` — the tenant switcher: every tenant of the installation and the hosts it is served at, listed through `tenantcontracts.Service.List` in a system transaction on a detached context; the path the tenant module's nav entry names.
+* `GET /api/v1/admin/resources` — the catalog: `screens.Describe` for this caller, in {source-tree}/modules/admin/internal/catalog.go[`internal/catalog.go`].
+* Screens: `screens.Mount` for every resource in `api.Resources()`, seven pages each under `/admin/<module>/<entity>`, with "Dashboard" as the breadcrumb's home. The sidebar is every module's `Nav` in composition order, shown only where the same authorizer the routes ask says yes; an entry no route serves is a warning at boot, not a disabled link. Hand-written pages: the five above, in {source-tree}/modules/admin/internal/pages.go[`internal/pages.go`], because no schema describes the way in, the way around, or a page about the installation.
+
+== Events, jobs and subscriptions
+
+* Publishes: none; the shell owns no data.
+* Jobs: none; `Jobs: nil`.
+* Subscriptions: none; `Subscriptions: nil`.
+
+== What it needs
+
+[cols="1,1,2"]
+|===
+| `Deps` field | Interface | Supplied by
+| `Modules` | `[]module.Module` | the composition itself, for the sidebar: {source-tree}/apps/platformkit/modules.go[`apps/platformkit/modules.go`] passes the modules built before it, and so does the flagship registry
+| `Authorize` | `httpx.Authorizer` | the auth module's `Auth`, the same value the kernel enforces with
+| `Tenants` | `tenantcontracts.Service` | the tenant module's service, for the switcher
+| `Theme` | `design.Pair` | `design.Default()` in `apps/platformkit/modules.go`; a client's own pair from the flagship registry; the zero value means the default
+|===
+
+Configuration: none.
+
+== Who uses it
+
+* The native shell (`platformkit-mobile`) — reads `GET /api/v1/admin/resources` and generates the same list, detail and form from it, by the same rules.
+* Every module that mounts a `rest.Spec` — its resource is served as screens here; it takes nothing from this module.
+* There is no `contracts/` to reach it through: `apps/platformkit/modules.go` and the flagship registry compose it last, and nothing else imports it.
+
+== Verification
+
+* `go test ./modules/admin/...` — {source-tree}/modules/admin/module_test.go[`module_test.go`] composes two modules and the shell behind the real kernel and proves: the seven screens are generated from a struct's tags; the sidebar and the dashboard show only what the caller may read; every class the shell renders has a rule; a sort header is a link; a page pins no theme; an anonymous browser is sent to `/admin/login` and the form only ever sends somebody back into the site; a nav entry no route serves is a boot warning; an operator's resource offers no write to a customer; the catalog is the same knowledge as JSON and omits what the caller may not read.
+* `make e2e` signs in at `/admin/login`, lands on the dashboard, follows the sidebar into a generated screen, checks the gallery at `/admin/_gallery`, and that no theme is stored until somebody chooses one ({source-tree}/e2e/admin-tasks.spec.ts[`e2e/admin-tasks.spec.ts`]).
+* Not proven: the tenant switcher — the tests compose the shell without `Tenants` and no journey opens `/admin/tenant/tenants`; the health page with a failing check.

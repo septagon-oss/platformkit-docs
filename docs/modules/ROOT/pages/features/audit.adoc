@@ -1,0 +1,66 @@
+= Audit
+
+The audit trail is the record of what happened in a tenant: every event any
+module publishes becomes one row saying what happened, who caused it and when,
+kept for as long as the deployment is obliged to keep it and read by whoever
+holds `audit:read`. The module promises that a module is audited by having
+emitted an event, wherever it sits in the composition; that a row is never
+updated and nothing but the retention job removes one; and that recording
+publishes nothing, because an audit of audits is a loop. The module is
+{source-tree}/modules/audit[`modules/audit`]; this page states nothing that
+tree does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/features/audit.html" title="Audit — the module and its seams" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/features/audit.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>features/audit</code> in the record</figcaption>
+</figure>
+++++
+
+== What it promises
+
+[cols="1,3"]
+|===
+| Entity | `Event` in {source-tree}/modules/audit/contracts/audit.go[`contracts/audit.go`]: an `id`, `occurredAt` (when the state changed, which is when the outbox row was written), the event's `name`, an `actor` that is absent for a job, a handler or the bootstrap, the `eventId` of the outbox event it records, and the `payload` as its module published it. It is not a `crud.Entity`: nothing updates a row, nothing soft-deletes one, and the tenant comes from the transaction, never from the envelope. `Query` filters a page by name, by actor and by time, `Since` inclusive and `Until` exclusive.
+| Events | none: the manifest declares `Events: nil`, and recording publishes nothing.
+| Permissions | `audit:read` — the list, the read and the navigation entry ({source-tree}/modules/audit/contracts/permissions.go[`contracts/permissions.go`]); there is no second permission, because nothing writes through a route.
+| Service | `contracts.Service`: `Record`, `List`, `Get`; the fake and the conformance suite live in {source-tree}/modules/audit/contracts/audittest[`contracts/audittest/`].
+|===
+
+== Routes and screens
+
+* `GET /api/v1/audit/events` — the trail, newest first, filterable by `name`, `actor`, `since` (inclusive) and `until` (exclusive), 50 rows a page and 200 at most; `GET /api/v1/audit/events/\{id}` — one row. Both are written by hand with `httpx.Register` in {source-tree}/modules/audit/internal/handler.go[`internal/handler.go`], behind `httpx.Permission("audit:read")`, as `audit-event-list` and `audit-event-read`. There is no `rest.Spec` and no command: a Spec is five routes and three of them write.
+* Screens: none. The routes register no `httpx.Resource`, so the shell generates nothing and the resource catalog does not list the trail. The manifest's navigation entry "Audit" points at `/admin/audit/events`, a path no route serves: the shell reports it once at boot and never renders it ({source-tree}/modules/admin/internal/mount.go[`modules/admin/internal/mount.go`], {source-tree}/ui/page/navigation.go[`ui/page/navigation.go`]). Hand-written pages: none.
+
+== Events, jobs and subscriptions
+
+* Publishes: nothing.
+* Jobs: `audit-retention` (`internal.Retention` in {source-tree}/modules/audit/internal/retention.go[`internal/retention.go`]), hourly on `0 * * * *`, through `jobs.PerTenant`: it deletes each tenant's rows older than `RetentionDays`, a thousand a transaction until fewer than a thousand remain, with the cutoff computed by the database so two workers' clocks cannot disagree.
+* Subscriptions: one, with no name. The manifest in {source-tree}/modules/audit/module.go[`module.go`] sets `SubscribeAll`, and the kernel's `module.Expand` ({source-tree}/kit/module/module.go[`kit/module/module.go`]) turns that one subscription into one per event every module declares, after every manifest has been read; each goes to `Service.Record`, which inserts `ON CONFLICT (tenant_id, event_id) DO NOTHING` — the key {source-tree}/migrations/000015_audit_event_unique.up.sql[`migrations/000015_audit_event_unique.up.sql`] gave it — so a redelivered or replayed event leaves one row. Main composes it next to last in {source-tree}/apps/platformkit/modules.go[`apps/platformkit/modules.go`], and nothing depends on that: a module listed after it is audited all the same.
+
+== What it needs
+
+[cols="1,1,2"]
+|===
+| `Deps` field | Interface | Supplied by
+| `Tenants` | `jobs.TenantLister` | the tenant module's `Active` lister, passed in `apps/platformkit/modules.go`; the retention job walks it
+| `RetentionDays` | `int` | `config.Audit.RetentionDays`, passed in the same file; zero means a year
+|===
+
+Configuration: `audit.retention_days` in `config.yaml` ({source-tree}/config.example.yaml[`config.example.yaml`]; `config.Audit` in {source-tree}/kit/config/config.go[`kit/config/config.go`]): zero means the default of 365, and a value below one is refused at load.
+
+== Who uses it
+
+* No module takes its contracts: nothing in `platformkit`, the catalog or the clients imports `modules/audit/contracts`; the compositions import the manifest, not the contracts.
+* The admin and the native shell do not reach it: it registers no `httpx.Resource`, so neither the generated screens nor `GET /api/v1/admin/resources` know the trail. A caller with `audit:read` reads the two routes.
+
+== Verification
+
+* `go test ./modules/audit/...` — the fake (`TestTheFakeIsAService`) and the real service (`TestServiceConforms`, on a real Postgres in a rolled-back tenant transaction) pass one conformance suite: a row says what happened, who caused it and when; a job's event is nobody's; three deliveries of one event leave one row; the filters by name, actor and time, newest first and paged; an unknown id is not found; and nothing is published. `TestTheTrailIsTenantOwned` proves another tenant sees nothing, by the policy in {source-tree}/migrations/000010_audit.up.sql[`migrations/000010_audit.up.sql`]; `TestRetentionForgetsOnlyWhatIsOldEnough` proves the boundary and the loop's exit.
+* No browser journey: {source-tree}/e2e/admin-tasks.spec.ts[`e2e/admin-tasks.spec.ts`] does not touch the trail.
+* Not proven: the two routes, which have no handler test; the batching of the retention delete, whose fixture is smaller than a batch; the expansion of `SubscribeAll` against a worker and a live transport, which is the kernel's to prove.

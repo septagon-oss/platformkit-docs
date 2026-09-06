@@ -1,0 +1,83 @@
+= Signing in
+
+Signing in is sessions, passwords, single sign-on, and the roles that decide
+what a caller may do. A person signs in with a password or at an identity
+provider and gets a `platformkit_session` cookie; every request after that is
+answered by the row the cookie names, in the tenant the host resolved to; and
+somebody who cannot sign in is sent a link that lets them choose a password
+once. The module promises that a session is a tenant's own row, that a failed
+login is recorded even though its request is rolled back, and that a reset
+link is in the mail and in no row. It is also the answer every other module's
+permission is checked against. The module is
+{source-tree}/modules/auth[`modules/auth`]; this page states nothing that tree
+does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/features/auth.html" title="Auth — the module and its seams" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/features/auth.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>features/auth</code> in the record</figcaption>
+</figure>
+++++
+
+== What it promises
+
+[cols="1,3"]
+|===
+| Entity | `Session` in {source-tree}/modules/auth/contracts/auth.go[`contracts/auth.go`]: the row is keyed by `IDHash`, the SHA-256 of the id the cookie carries, and the id itself is stored nowhere; a user, `CreatedAt`, `ExpiresAt`, `LastSeenAt`, and the `UserAgent` and `IP` it was opened from, recorded once. It slides thirty days from its last use (`SessionLifetime`), at most once every five minutes (`SessionTouch`), and never past ninety days from creation (`SessionMaxLifetime`). `Role` in the same file is a name and the `Permissions` it grants in one tenant; `admin` holds the `Wildcard` `*` and `member` nothing. `Identity` is what a login and `GET /api/v1/auth/me` answer: user, email, display name, roles and the permissions they resolve to. The tables are `sessions` and `roles` ({source-tree}/migrations/000008_auth.up.sql[`migrations/000008_auth.up.sql`], the session rekeyed by {source-tree}/migrations/000013_session_hash.up.sql[`000013_session_hash.up.sql`]) and `password_tokens` ({source-tree}/migrations/000014_password_tokens.up.sql[`000014_password_tokens.up.sql`]), one pending token per person, hashed the same way.
+| Events | `auth.logged_in` from `Login` and the OIDC callback, its payload saying `password` or `oidc`; `auth.logged_out` from `Logout`; `auth.login_failed` from a failed login, in a transaction of its own because the request's is rolled back; `auth.reset_requested` from `Forget`; `auth.password_reset` from `Reset`; `auth.role_set` from `SetRole`, carrying what the role was and is ({source-tree}/modules/auth/contracts/events.go[`contracts/events.go`]). There are no CRUD events, because the module mounts no `rest.Spec`.
+| Permissions | `role:manage` — the two roles routes and the "Roles" navigation entry; it is the only permission the module declares, and there is no `role:read` beside it: a list of roles is a list of what everybody may do ({source-tree}/modules/auth/contracts/permissions.go[`contracts/permissions.go`]). Every other route is `Public` or `SignedIn`, because it is about the caller themselves.
+| Service | `contracts.Service`: `Precheck`, `MayAsk`, `MayRedeem`, `Login`, `Logout`, `Identify`, `Open`, `Permissions`, `RevokeSessions`, `ChangePassword`, `Forget`, `Reissue`, `Offer`, `Reset`, `Roles`, `SetRole`, `Purge`; `contracts.Auth` adds the two kernel hooks, `Allowed` (`httpx.Authorizer`) and `Authenticate`. `Login` answers `ErrCredentials` alike for a wrong password, an unknown address, an invited user and a deactivated one, and `ErrTooManyAttempts` once an address has failed ten times in fifteen minutes (`contracts.Limiter`). The fake, the conformance suite and a test OpenID Connect issuer live in {source-tree}/modules/auth/contracts/authtest[`contracts/authtest/`].
+|===
+
+== Routes and screens
+
+* `POST /api/v1/auth/login` — `Public`; a wrong password and an address nobody has answer the same 401 and cost the same; ten failures for an address in fifteen minutes is a 429, and an account attacked from more than three addresses gets a two-second delay before the transaction opens instead of a lockout; a sign-in posted from another site is refused. It sets the `platformkit_session` cookie: HttpOnly, SameSite Lax, Secure and `__Host-`-prefixed unless `PublicHost` is a local name ({source-tree}/modules/auth/internal/handler.go[`internal/handler.go`], {source-tree}/modules/auth/internal/kernel.go[`internal/kernel.go`]).
+* `POST /api/v1/auth/logout` — `SignedIn`; deletes the session and clears the cookie; signing out when already signed out is not an error.
+* `GET /api/v1/auth/me` — `SignedIn`; the caller's `Identity`.
+* `POST /api/v1/auth/password` — `SignedIn`; requires the password in force, ends every other session of this person and keeps the one asking ({source-tree}/modules/auth/internal/password.go[`internal/password.go`]).
+* `POST /api/v1/auth/password/forgot` — `Public`; publishes `auth.reset_requested` and does nothing else, so an address somebody has and one nobody has are the same answer and the same work; the 429 counts the address asking, ten per window, never the address asked about.
+* `POST /api/v1/auth/password/reset` — `Public`; consumes the token the link carried, sets the password, ends every session including the caller's and clears the cookie; an unknown, spent or expired token is one 401; twenty redemptions per address per window.
+* `GET /api/v1/auth/roles` and `PUT /api/v1/auth/roles/\{name}` — `role:manage`; the `PUT` creates the role if it is new, refuses a permission no module defines and an operator permission outside the operator's own tenant (422), and publishes `auth.role_set` only when the list changed ({source-tree}/modules/auth/internal/roles.go[`internal/roles.go`]).
+* `GET /api/v1/auth/oidc/start` and `GET /api/v1/auth/oidc/callback` (the configured `redirect_path`) — `Public`, registered only when an issuer is configured: PKCE and a `platformkit_oidc` state cookie out, a verified address back, and a session for the user this tenant has at that address; an address it has no account for is refused and nobody is created ({source-tree}/modules/auth/internal/oidc.go[`internal/oidc.go`]).
+* Screens: none. The module registers no `httpx.Resource`, so the admin generates nothing for it; the sign-in page is the admin module's `GET /admin/login`, whose form posts to `POST /api/v1/auth/login` ({source-tree}/modules/admin/internal/pages.go[`modules/admin/internal/pages.go`]). The manifest's navigation entry "Roles" names `/admin/auth/roles` for `role:manage`, and no page in the tree serves that path; the shell reports an unserved entry once at boot and does not show it ({source-tree}/modules/admin/internal/mount.go[`modules/admin/internal/mount.go`]). Hand-written pages: none.
+
+== Events, jobs and subscriptions
+
+* Publishes: the six events above; `auth.login_failed` is the one event in the application written outside the transaction of the thing it describes, because a 401 is a response the kernel rolls back.
+* Jobs: `auth-sweep` (`internal.Sweep`), cron `0 * * * *`: purges the rate-limit windows once (`limit.Purge`), then through `jobs.PerTenant` deletes each tenant's expired sessions and spent tokens a thousand rows per transaction (`Purge`) and logs every role that names a permission no module defines (`Undeclared`) ({source-tree}/modules/auth/internal/sweep.go[`internal/sweep.go`]).
+* Subscriptions: `user.invited` → `Offer`, which mints a set-password token for an invited user and mails the link, skipping somebody who already has a password; `auth.reset_requested` → `Reissue`, which looks the address up in the worker and mails a link only to an active user who was not sent one in the last five minutes ({source-tree}/modules/auth/module.go[`module.go`]). Both are subscriptions rather than calls inside the request, so the request neither waits on a mail server nor reveals, by its timing, whether the address exists.
+
+== What it needs
+
+[cols="1,1,2"]
+|===
+| `Deps` field | Interface | Supplied by
+| `Users` | `contracts.Users` | the user module's `Service` (`ByEmail`, `Get`, `SetPassword`), passed in {source-tree}/apps/platformkit/modules.go[`apps/platformkit/modules.go`]
+| `Notify` | `contracts.Notifier` | the notification module's `Service`; a composition that wires none still sends the mail
+| `Mailer` | `notificationcontracts.Mailer` | the same sender the notification module takes: SMTP when `mail` is configured, the in-memory mailbox otherwise; a composition that wires none issues no token
+| `Hosts` | `notificationcontracts.HostLookup` | main's `tenantHosts` over the tenant module, so a mailed link is built on the recipient's own tenant's primary host
+| `Tenants` | `jobs.TenantLister` | the tenant module's `Active` lister, for the sweep
+| `OIDC` | `auth.OIDC` | `auth.OIDC(cfg.Auth.OIDC)`; an empty issuer registers no OIDC routes
+| `PublicHost` | `string` | `cfg.Server.PublicHost`; a local name turns off `Secure` and the `__Host-` prefix
+|===
+
+Configuration: `auth.oidc.issuer`, `auth.oidc.client_id`, `auth.oidc.client_secret` (set as `PLATFORMKIT_AUTH_OIDC_CLIENT_SECRET` rather than committed) and `auth.oidc.redirect_path` (default `/api/v1/auth/oidc/callback`, refused unless under `/api/v1/auth/`), all of it or none of it ({source-tree}/kit/config/config.go[`kit/config/config.go`]). Session, token and lockout parameters are constants in `contracts/`, not configuration.
+
+== Who uses it
+
+* The kernel — main passes the returned `contracts.Auth` to `kit/app` as `Options.Authorize` and `Options.Authenticate` ({source-tree}/apps/platformkit/main.go[`apps/platformkit/main.go`]), so every permission any module declares is resolved against the `roles` table here, in the request's own transaction, with no cache.
+* admin — `admin.Deps.Authorize` takes the same value as an `httpx.Authorizer`, to show only the links the caller may follow; its sign-in page posts to `POST /api/v1/auth/login`.
+* A private client module — `Deps.Authorize httpx.Authorizer`, the same value, to draw a write control only where the route would let it through; the private application's registry lists `auth` among the three kernel modules no client may leave out.
+* The tenant module, through main — its `OnCreate` hook is `seedRoles`, which calls `auth.SeedRoles` with the operator permissions `tenant:manage` and `billing:catalog`; the flagship passes the client's `roles` as defaults, checked with `contracts.CheckedPermissions` before boot; `authcontracts.RoleAdmin` names the first administrator's role in `bootstrap` and `start`.
+* The admin and the native shell reach it through its routes, not through `contracts/`: the shell's `login` is `POST /api/v1/auth/login`, keeping the `Set-Cookie` value, and `logout` is `POST /api/v1/auth/logout` (`platformkit-mobile`, `src/effects/api.ts`).
+
+== Verification
+
+* `go test ./modules/auth/...` — the fake and the real service pass one conformance suite of eighteen cases (`authtest.RunService`: a password opens a session, a wrong password and an address nobody has answer alike, too many failures lock the address, the link sets a password once and ends every session, an operator permission cannot be granted in a customer's tenant); the internal tests prove that a session from another tenant is not a session here, that use slides the expiry and never past the cap, that a failed login is recorded though its request is rolled back, that the reset token is in the mail and in no row, that the forgotten-password route costs the same either way, that the soft delay holds no transaction and that the lockout is one counter for every replica; the single sign-on round trip runs against `authtest`'s issuer; `seed_test.go` proves role provisioning needs only its transaction.
+* `make e2e` signs in through `/admin/login`, which posts to `POST /api/v1/auth/login`, before every journey ({source-tree}/e2e/admin-tasks.spec.ts[`e2e/admin-tasks.spec.ts`]); a private shopper journey signs in the same way.
+* Not proven: single sign-on against a live identity provider; the password flows in a browser, since no journey follows a mailed link; the sweep against a live fleet.

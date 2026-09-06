@@ -1,0 +1,73 @@
+= Tenants
+
+A tenant is one customer of the platform: a slug, a name, the hosts it is served
+at, and every row in every other table belongs to exactly one. That makes this
+module the control plane rather than a business module: the kernel resolves a
+request's host through it before the request is about anything, and the periodic
+jobs walk its list. It promises that an installation is whole or absent — a
+tenant, its first host and the roles the auth module seeds are one transaction —
+and that a suspended tenant's hosts read from outside as no site at all. It
+imports no other module; the modules above it reach it through hooks. The module
+is {source-tree}/modules/tenant[`modules/tenant`]; this page states nothing that
+tree does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/features/tenant.html" title="Tenants — the module and its seams" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/features/tenant.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>features/tenant</code> in the record</figcaption>
+</figure>
+++++
+
+== What it promises
+
+[cols="1,3"]
+|===
+| Entity | `Tenant` in {source-tree}/modules/tenant/contracts/tenant.go[`contracts/tenant.go`]: a slug (a DNS label), a name, a status (`active`, `suspended`), an `Operator` flag that only `Bootstrap` writes, and its hosts, the primary one first, loaded from their own table. It does not embed `crud.Base` — a tenant has no tenant to belong to — so there is no `rest.Spec`. `NewTenant` is what a create takes: a slug, a name and the first host, which is not optional.
+| Events | `tenant.created` from `Create`, after the hooks; `tenant.suspended` from `Suspend`, once — suspending again publishes nothing; `tenant.host_added` from `AddHost`, for a host the tenant did not answer at yet. All three go through `events.PublishFor`, because the transaction that changed the control plane belongs to no tenant. The invite route publishes `user.invited`, which the user module owns.
+| Permissions | `tenant:manage` — every route and the navigation entry; declared `Operator`, so the kernel refuses it at every tenant but the operator's own before the roles table is asked, and no wildcard satisfies it. There is no read permission: a role that may look at every customer is a role that may change it.
+| Service | `contracts.Service`: `Create`, `AddHost`, `Suspend`, `Get`, `List`, `ByHost`, `Hosts`; `contracts.Active` adapts it to `jobs.TenantLister` by keeping the active tenants; `contracts.Hook` and `contracts.Inviter` are what the module asks main for. The fake and the conformance suite live in {source-tree}/modules/tenant/contracts/tenanttest[`contracts/tenanttest/`].
+|===
+
+== Routes and screens
+
+* `GET`/`POST /api/v1/tenant/tenants` and `GET /api/v1/tenant/tenants/\{id}` — written by hand in {source-tree}/modules/tenant/internal/handler.go[`internal/handler.go`] rather than mounted from a `rest.Spec`, because a tenant carries no `tenant_id` for the generic repository to stamp. There is no `PATCH` and no `DELETE`. Each handler opens a system transaction of its own, `db.RunSystem` over `db.Detached`, with the token `api.SystemToken()` hands `RegisterRoutes`; the write commits whether or not the response reaches the caller.
+* `POST /api/v1/tenant/tenants/\{id}/suspend` — stops the tenant being served and drops its hosts from the resolution cache with `api.InvalidateHost`; `POST /api/v1/tenant/tenants/\{id}/hosts` — another host, `primary` false unless asked; `POST /api/v1/tenant/tenants/\{id}/invite` — the first administrator, mounted only when `Deps.Invite` is wired. Every route declares `httpx.OperatorPermission(contracts.PermissionTenantManage)`; the operation IDs are `tenant-tenant-<verb>`.
+* Screens: none generated — no `rest.Spec`, so no `httpx.Resource` and no entry in the catalog the native shell reads. The navigation entry "Tenants" at `/admin/tenant/tenants` is shown to a holder of `tenant:manage` in the operator's tenant; the page there is the admin module's hand-written switcher ({source-tree}/modules/admin/internal/pages.go[`modules/admin/internal/pages.go`]), every tenant with its status and hosts, behind the same operator permission. Hand-written pages in this module: none.
+
+== Events, jobs and subscriptions
+
+* Publishes: the three events above, each declared on the operation that publishes it so the boot gate can check it; the invite route declares `user.invited`.
+* Jobs: none, written out as a decision: the module has no periodic work of its own; it is what the other modules' periodic work walks, through `contracts.Active`.
+* Subscriptions: none. A module above it is notified inside the create transaction through `Deps.OnCreate` instead, because a `tenant.created` subscriber runs when the worker gets to it, after the administrator the same transaction created has tried to sign in.
+
+== What it needs
+
+[cols="1,1,2"]
+|===
+| `Deps` field | Interface | Supplied by
+| `OnCreate` | `[]contracts.Hook` | its own contracts; {source-tree}/apps/platformkit/modules.go[`apps/platformkit/modules.go`] passes `seedRoles`, which calls `auth.SeedRoles` in the create transaction, and the flagship's `registry.go` closes the same hook over the client's roles
+| `Invite` | `contracts.Inviter` | its own contracts; `apps/platformkit/modules.go` passes `firstAdmin`, `usercontracts.Service.Provision` with the admin role and no password. `catalog-check` and the flagship wire none, so they do not mount the invite route
+|===
+
+Configuration: none.
+
+== Who uses it
+
+* The kernel, through main: `Module` returns the service beside its manifest, main hands it to `app.Options.Tenants` as `httpx.TenantLoader` (`ByHost`), and `contracts.Active` over it is the `jobs.TenantLister` that `jobs.PerTenant` walks.
+* task, billing and audit (`Deps.Tenants: jobs.TenantLister`), and the catalog modules — the `Active` lister, for their per-tenant sweeps; auth takes it for its hourly sweep.
+* auth and notification (`Deps.Hosts`, notification's `contracts.HostLookup`) — main's `tenantHosts` adapter over `Service.Hosts`, so a mailed link is built on the tenant's primary host.
+* admin (`Deps.Tenants: contracts.Service`) — the switcher's list, under the token its own `Routes` is handed.
+* `apps/platformkit` (`bootstrap`, `start`), the catalog's `apps/catalog-check` and the clients' `apps/flagship` call `tenant.Bootstrap` ({source-tree}/apps/platformkit/bootstrap.go[`apps/platformkit/bootstrap.go`]) for the first tenant of an installation; it refuses when one exists and is the only writer of `Operator`.
+* The admin reaches it through `contracts/`, not through `httpx.Resource`; the native shell does not reach it at all.
+
+== Verification
+
+* `go test ./modules/tenant/...` — `TestFakeConforms` and `TestServiceConforms` run one conformance suite against the fake and the real service, the latter on a real cross-tenant transaction that reads the outbox, so an idempotent command is held to publishing nothing the second time; the internal tests prove the hook runs in the create transaction and a failing hook leaves no tenant, a tenant transaction sees only its own row and cannot write another's, and `Bootstrap` refuses a second installation ({source-tree}/modules/tenant/internal/service_test.go[`internal/service_test.go`]).
+* `go test ./apps/platformkit/...` — `TestAnEmptyDatabaseBecomesAWorkingInstallation` creates a second tenant as the operator's administrator, is refused with 403 `AUTH_NOT_OPERATOR` at another tenant's host — with the wildcard and with a role naming `tenant:manage` — and invites a first administrator who chooses a password from a link on their own host; `TestTheWorkerRoleSweepsEveryTenant` walks two tenants through `contracts.Active` ({source-tree}/apps/platformkit/app_test.go[`apps/platformkit/app_test.go`]).
+* No browser journey: `make e2e` bootstraps one tenant and opens neither the switcher nor a control-plane route.
+* Not proven: `suspend` and `hosts` succeeding over HTTP, only their refusal is; the cache invalidation on suspend; `handler.go` has no test file of its own.

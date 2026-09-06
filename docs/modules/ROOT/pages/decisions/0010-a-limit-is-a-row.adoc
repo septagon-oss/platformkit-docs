@@ -1,0 +1,97 @@
+= 0010 — A limit is a row
+
+Status: accepted, 2026-09-03. The record is
+{source-tree}/docs/adr/0010-a-limit-is-a-row.md[`docs/adr/0010-a-limit-is-a-row.md`];
+this page is its map and its summary and states nothing the record does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/decisions/0010-a-limit-is-a-row.html" title="ADR 0010 — A limit is a row" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/decisions/0010-a-limit-is-a-row.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>decisions/0010-a-limit-is-a-row</code> in the record</figcaption>
+</figure>
+++++
+
+== Context
+
+`modules/auth` shipped its lockout as a map in the process — ten failed
+passwords for one account in fifteen minutes, and that account stops being
+tried — and the comment on it said what was wrong with it: with three replicas
+an attacker gets thirty attempts per window rather than ten, and a deploy
+resets the count. Then the deployment stage put two replicas behind one
+service, and the E6 review found a client's redeem route measuring 1,054
+guesses a second against a code space small enough to walk — the same gap, in
+a second module, written the same way. Three things have to be true of the
+counter that replaces it: every replica sees one number, a deploy does not
+reset it, and the thing being counted is refused before the work it guards is
+done.
+
+== Decision
+
+A limit is a row in Postgres, and `kit/limit` is the only thing that writes
+it: `platformkit_limits(key, window_start, count)`, one row per key per window,
+and one `INSERT … ON CONFLICT (key) DO UPDATE … RETURNING count` to record an
+event, so two replicas raising the same count are serialized by that row's own
+lock and there is no read-then-write for either of them to lose. Around it: a
+fixed window rather than a token bucket; the key carries its tenant, so the
+table is the third `platformkit:tenant-scoping-exempt` table and its policy is
+`platformkit_is_system()` in both directions; every statement runs in its own
+system transaction on a detached context with a two second budget, because a
+failed login rolls its own transaction back and a limiter must never be the
+thing that holds a request open; a limiter that cannot be reached allows the
+attempt and says so, as an error the caller decides about; and `Count` records
+nothing. Redis or NATS KV were rejected as a second stateful dependency for a
+deployment that has exactly one — a rate limit whose store is optional
+disappears in the incident it exists for — and leaving the counter per process
+and buying more replicas' worth of margin was rejected because dividing the
+numbers by the replica count makes the honest failures fail.
+
+== Consequences
+
+* The counters outlive a deploy, and an attacker's window is the window.
+* One hourly `DELETE` empties the rows whose window closed a day ago. It runs
+  in `modules/auth`'s sweep, because the module that writes the table is the
+  reason it exists; the moment a second module adopts `kit/limit`, that purge
+  belongs beside the outbox's in `kit/app`.
+* A limit now costs a round trip. On a login that is noise next to one argon2id
+  hash, which is the shape of every caller so far; a limit on a route that does
+  no other work would want a different answer, and the record is where that
+  argument would be revisited.
+* `modules/auth`'s "cluster-wide is a later stage" comments are gone, and the
+  memory implementation stayed — as the fake the conformance suite proves the
+  interface against, and as what a test uses when it is not testing this.
+
+== Where it lives
+
+* {source-tree}/kit/limit/limit.go[`kit/limit/limit.go`] — the `Limiter` interface (`Allow`, `Count`, `Forget`), `Postgres(conns)` and the one `INSERT … ON CONFLICT (key) DO UPDATE … RETURNING count`; `run`, which opens every statement's own `db.RunSystem` transaction on a detached, `WithoutCancel` context with a two second budget; `scoped`, which puts the tenant of the context in front of every key; `ErrNoConnection`; `Purge`, which deletes the rows whose window closed a day ago.
+* {source-tree}/kit/limit/memory.go[`kit/limit/memory.go`] — `Memory()`, the same counter in one process's memory, for a test and for a fake; nothing in `apps/` constructs one.
+* {source-tree}/kit/limit/limit_test.go[`kit/limit/limit_test.go`] — the three tests below, and `TestAContextWithNoConnectionIsAnError`.
+* {source-tree}/migrations/000021_limits.up.sql[`migrations/000021_limits.up.sql`] — `platformkit_limits`, its index on `window_start`, `ENABLE` and `FORCE ROW LEVEL SECURITY`, the policy `platformkit_is_system()` for both `USING` and `WITH CHECK`, and the `platformkit:tenant-scoping-exempt` comment.
+* {source-tree}/kit/httpx/middleware.go[`kit/httpx/middleware.go`] — `ConnFrom` and `WithConn`: the connection the transaction middleware puts on every request's context, which is what the application passes as the limiter's `Connections`.
+* {source-tree}/modules/auth/contracts/limiter.go[`modules/auth/contracts/limiter.go`] — `Limiter` over a `limit.Limiter` store, with `MaxAttempts`, `AttemptWindow`, `MaxSources`, `SoftDelay`, `SourceAttempts`, `ResetRequests` and `ResetRedemptions`: `Check` reads and answers `Allow`, `Delay` or `Refuse`; `Failed` and `Succeeded` write; `Requested`, `Redeemed` and `Noted` count; a store that cannot be reached allows the attempt and logs it; the address is hashed in the key.
+* {source-tree}/modules/auth/internal/service.go[`modules/auth/internal/service.go`] — `NewService` builds `contracts.NewLimiter(limit.Postgres(httpx.ConnFrom))`; `Login` answers `ErrTooManyAttempts` on `Refuse`, `fail` records a failure, and a correct password forgets the account's count.
+* {source-tree}/modules/auth/internal/handler.go[`modules/auth/internal/handler.go`] — `auth-login` (`POST /api/v1/auth/login`): `Precheck`, then the `SoftDelay` pause, then the transaction, in that order; `auth-password-forgot` asks `MayAsk` and `auth-password-reset` asks `MayRedeem`.
+* {source-tree}/modules/auth/internal/sweep.go[`modules/auth/internal/sweep.go`] — `auth-sweep`, cron `0 * * * *`, runs `limit.Purge` once, outside the per-tenant walk.
+* {source-tree}/modules/auth/contracts/authtest/fake.go[`modules/auth/contracts/authtest/fake.go`] — the fake, over `limit.Memory()`.
+
+== Evidence
+
+[source,sh]
+----
+go test ./kit/limit -run 'TestTwoReplicasShareOneLimit'
+go test ./kit/limit -run 'TestBothLimitersAgree'
+go test ./kit/limit -run 'TestPurgeDropsWindowsThatClosedLongAgo'
+go test ./migrations -run 'TestEveryTableIsScopedOrExemptOnPurpose'
+----
+
+The record is precise about the limit: a fixed window gives an attacker, at
+the edge between two windows, twice the limit for one instant, and that is
+accepted over a bucket that costs a second column and a rate nobody can state.
+A limiter that cannot reach its store allows the attempt and says so, which is
+right for a lockout and would be wrong for a paywall. And the round trip is
+argued for a login and nothing else: a limit on a route that does no other
+work is not claimed here.

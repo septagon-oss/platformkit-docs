@@ -1,0 +1,72 @@
+= Users
+
+A user is one person in one tenant: the address they sign in with, a name to
+show, a lifecycle status and the roles they hold. The module promises that the
+two changes an audit has to be able to find — a grant and a deactivation — each
+have one door and each say so in an event, and that a password is stored as an
+argon2id hash that appears in no request, no response and no screen. It takes
+no dependencies at all: a user belongs to a tenant by carrying its id, which
+row-level security matches on. The module is
+{source-tree}/modules/user[`modules/user`]; this page states nothing that tree
+does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/features/user.html" title="Users — the module and its seams" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/features/user.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>features/user</code> in the record</figcaption>
+</figure>
+++++
+
+== What it promises
+
+[cols="1,3"]
+|===
+| Entity | `User` in {source-tree}/modules/user/contracts/user.go[`contracts/user.go`]: an email, unique within the tenant and compared without case, a display name, a status (`invited`, `active`, `inactive`), the roles held as a `text[]` of lower-case identifiers, and `PasswordHash`, which is `json:"-"`. `status` and `roles` are `Immutable` to a `PATCH`. A password is at least `MinPasswordLength` (12) characters and is hashed with argon2id in the PHC encoding by {source-tree}/modules/user/contracts/password.go[`contracts/password.go`], so the parameters travel with the hash. One row per person per tenant in `users` ({source-tree}/migrations/000007_user.up.sql[`migrations/000007_user.up.sql`]): unique on `(tenant_id, lower(email))` while not deleted, with `FORCE ROW LEVEL SECURITY`.
+| Events | `user.user.created`, `user.user.updated`, `user.user.deleted` from the generated routes; `user.invited` from `Invite`, the invitation route and `Provision`; `user.password_set` from `SetPassword`, every time; `user.roles_set` from `SetRoles`, which publishes nothing for the same set again; `user.deactivated` from `Deactivate`, once. The payloads are in {source-tree}/modules/user/contracts/events.go[`contracts/events.go`]; `PasswordSet` carries no password and no hash.
+| Permissions | `user:read` — the list, the reads and the navigation entry; `user:manage` — the writes, the invitation and the three commands ({source-tree}/modules/user/contracts/permissions.go[`contracts/permissions.go`]).
+| Service | `contracts.Service`: `Invite`, `SetPassword`, `SetRoles`, `Deactivate`, `Get`, `ByEmail`, and `Provision`, which creates a user from a `db.Tx[db.System]` naming the tenant; the fake and the conformance suite live in {source-tree}/modules/user/contracts/usertest[`contracts/usertest/`].
+|===
+
+== Routes and screens
+
+* `GET`/`POST /api/v1/user/users` and `GET`/`PATCH`/`DELETE /api/v1/user/users/\{id}` — the five routes `rest.Spec.Mount` registers, with soft delete; a create or a patch that names `status` or `roles` is refused with the route that owns the field.
+* `POST /api/v1/user/invitations` — creates somebody who cannot sign in yet and publishes `user.invited`; roles named in the invitation are granted in the same transaction, so one request is one event about who was made what; an address already here is a conflict. It is a collection of its own because there is no user yet to command. It and the commands are in {source-tree}/modules/user/internal/handler.go[`internal/handler.go`].
+* `POST /api/v1/user/users/\{id}/set-password` — stores the hash and makes an invited user active; the same password again is still a change and still an event; a deactivated user is refused with a conflict.
+* `POST /api/v1/user/users/\{id}/roles` — replaces the roles held, trimmed, lower-cased, deduplicated and sorted; the same set in any order changes nothing and publishes nothing.
+* `POST /api/v1/user/users/\{id}/deactivate` — stops the person signing in; a second time changes nothing. Their sessions are the auth module's business.
+* Screens: the generated list, detail and forms under `/admin/user/users`, and the navigation entry "Users" for anyone with `user:read`; {source-tree}/modules/user/module.go[`module.go`] says why the generated create form does not offer `roles`. Hand-written pages: none; an invitation screen would have to be one.
+
+== Events, jobs and subscriptions
+
+* Publishes the seven events above; all seven are listed in the manifest, so the boot gate can check every route's declaration against it.
+* Jobs: none — `Jobs: nil` in `module.go`.
+* Subscriptions: none — `Subscriptions: nil`; the auth module is what listens for `user.invited`.
+
+== What it needs
+
+[cols="1,1,2"]
+|===
+| `Deps` field | Interface | Supplied by
+| none | `user.Deps{}` is empty | `apps/platformkit/modules.go` calls `user.Module(user.Deps{})` first, and hands the returned `Service` to the modules below
+|===
+
+Configuration: none.
+
+== Who uses it
+
+* auth — `auth.Deps.Users` is `authcontracts.Users` (`ByEmail`, `Get`, `SetPassword`), the narrow half of the `Service` main passes it; it subscribes to `user.invited` to mail the set-password link, and calls `contracts.EqualWork` on the path where it found no user, so a login for an address nobody has costs what a wrong password costs.
+* notification — `notification.Deps.Recipients` is its own `RecipientLookup`, satisfied in `apps/platformkit/modules.go` by an adapter over `Service.Get`.
+* tenant — `tenant.Deps.Invite` is `tenantcontracts.Inviter`, satisfied in `apps/platformkit/modules.go` by `firstAdmin`, an adapter over `Service.Provision` with no password and the admin role; `platformkit bootstrap` creates the first administrator through `Provision` too, in the same transaction as the tenant.
+* A private client module — takes `user.Service` for a display name.
+* The admin and the native shell reach it through `httpx.Resource`, not through `contracts/`.
+
+== Verification
+
+* `go test ./modules/user/...` — the fake and the real service pass one conformance suite; `TestALifecycleChangeHasExactlyOneDoor` proves a create or a patch naming `roles` or `status` is refused with the door to use while a patch of `displayName` and the `roles` command work; `TestThePasswordIsInNoResponseAndNoRequest` proves no body carries a password or a hash; the internal tests prove one address is one row per tenant and invisible to another, that the stored hash is argon2id carrying its parameters, and that `Provision` lands in the named tenant with one event.
+* No browser journey of its own: `make e2e` signs in as `admin@e2e.test`, the administrator `platformkit bootstrap` provisioned, and opens no user screen ({source-tree}/e2e/admin-tasks.spec.ts[`e2e/admin-tasks.spec.ts`]).
+* Not proven: `…/deactivate` over HTTP, which the conformance suite covers only at the service, and the generated user screens in a browser. The invitation route is driven over the wire outside this module: {source-tree}/apps/platformkit/app_test.go[`apps/platformkit/app_test.go`] invites somebody through `POST /api/v1/user/invitations` and reads the set-password token out of the mail that follows.

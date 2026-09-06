@@ -1,0 +1,83 @@
+= 0005 — One binary, three roles, and every role migrates
+
+Status: accepted, 2026-09-02. The record is
+{source-tree}/docs/adr/0005-roles-and-who-migrates.md[`docs/adr/0005-roles-and-who-migrates.md`];
+this page is its map and its summary and states nothing the record does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/decisions/0005-roles-and-who-migrates.html" title="ADR 0005 — One binary, three roles, and every role migrates" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/decisions/0005-roles-and-who-migrates.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>decisions/0005-roles-and-who-migrates</code> in the record</figcaption>
+</figure>
+++++
+
+== Context
+
+The previous deployment had a web image, a worker image and a migration job,
+built from one tree but shipped as three artifacts, plus an init container
+whose only purpose was to make the other two wait. Most incidents in that
+sequence were ordering: a worker that started before the migration, a
+migration job that had already run, a rollback that left the two images on
+different schemas.
+
+== Decision
+
+One binary and one image. `--role web|worker|all` chooses what the process
+does: `web` builds the API, runs the boot gates and serves; `worker` relays the
+outbox, consumes subscriptions, runs the periodic jobs, and serves exactly two
+routes, `/health` and `/ready`, on the same address, so one orchestrator
+manifest describes both roles; `all` is both in one process with the in-memory
+transport, and it is the default. Every role runs `Migrate` at boot:
+`db.Migrate` takes a fixed advisory lock before it touches the ledger, so
+several processes racing to migrate is one process migrating and the rest
+waiting and finding nothing to do, which removes the ordering problem instead
+of sequencing it.
+
+== Consequences
+
+* Deploying is `kubectl set image` on two deployments of the same image, and
+  a worker cannot serve a stale schema: it applied the schema itself.
+* Every role runs the boot gates, and the roles that do not serve discard the
+  router; a worker that skipped them would start on a composition the web role
+  refuses, and the rollout would look half healthy.
+* The probes are a plain mux in both roles, not the API: a probe has no tenant,
+  no session and no operation to declare, and the web role mounts the same mux
+  beside the API, outside the middleware chain, so liveness does not wait on
+  the tenant lookup it exists to survive.
+* A migration that is slow makes every replica's boot slow, which is visible in
+  the rollout rather than hidden in a job that finished an hour ago.
+* This rebuild starts on a fresh database with no old-ledger conversion; later
+  releases must choose a rollout explicitly, expanding the schema for
+  overlapping binaries or stopping the old processes before a breaking change,
+  and an old binary cannot restart with an incomplete migration history.
+
+== Where it lives
+
+* {source-tree}/kit/app/app.go[`kit/app/app.go`] — `app.Role`, the closed set `Web`, `Worker` and `All` that `New` refuses to widen and defaults to `All`; `App.Run`, which migrates, opens the connection, builds the API and runs the boot gates in every role, then serves, works, or does both; `work`, the outbox relay and purge, every module's jobs and subscriptions; `probes`, the worker's whole HTTP surface.
+* {source-tree}/kit/db/migrate.go[`kit/db/migrate.go`] — `db.Migrate`: one pinned connection takes `pg_advisory_lock(7240101)` before the `schema_migrations` ledger is prepared or read, applies each pending file and its history row in one transaction, and unlocks on the same connection.
+* {source-tree}/kit/health/health.go[`kit/health/health.go`] — `health.Mux`, the handler for `GET /health` and `GET /ready`, and `DatabaseCheck`; `Register` mounts the same mux beside the API in the web role.
+* {source-tree}/apps/platformkit/main.go[`apps/platformkit/main.go`] — the `run` command's `--role` flag, `web`, `worker`, or `all`, passed to `app.New` as `Options.Role`.
+* {source-tree}/apps/platformkit/start.go[`apps/platformkit/start.go`] — the `start` command composes with `Role: app.All` and calls `Run`, so its migrations run on the way past; a deployment never runs it.
+* {source-tree}/kit/events/jetstream.go[`kit/events/jetstream.go`] — the deliver group that lets N workers share one durable consumer, so a second worker replica is possible.
+
+== Evidence
+
+[source,sh]
+----
+go test ./kit/app -run 'TestWorkerRelaysAndAnswersItsProbes'
+go test ./kit/db  -run 'TestMigrateIsIdempotent'
+----
+
+`TestWorkerRelaysAndAnswersItsProbes` runs the worker role end to end against
+a schema already applied once, answers `/health` and `/ready`, refuses
+`/openapi.json`, and relays a row written through another connection.
+`TestMigrateIsIdempotent` calls `Migrate` twice and counts each file once. The
+record is explicit about what it does not decide: this rebuild starts on a
+fresh database, and how a later breaking change is rolled out, by expanding the
+schema for overlapping binaries or by stopping the old processes first, is a
+choice each later release must make on its own.

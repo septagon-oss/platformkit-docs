@@ -1,0 +1,102 @@
+= 0009 — Public foundation and private consumers
+
+Status: accepted, 2026-09-03. The record is
+{source-tree}/docs/adr/0009-what-is-public.md[`docs/adr/0009-what-is-public.md`];
+this page is its map and its summary and states nothing the record does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/decisions/0009-what-is-public.html" title="ADR 0009 — Public foundation and private consumers" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/decisions/0009-what-is-public.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>decisions/0009-what-is-public</code> in the record</figcaption>
+</figure>
+++++
+
+== Context
+
+The foundation needs to build and run without private source or credentials.
+Commercial capabilities and client configuration have different owners and
+access requirements, and keeping the shared implementation in one public
+module does not require publishing those consumers. The record refines the
+public repository boundary drawn by
+{source-tree}/docs/adr/0001-one-repository.md[ADR 0001]; migration ownership
+is defined by
+{source-tree}/docs/adr/0011-migration-ownership.md[ADR 0011], which it cites
+and does not restate.
+
+== Decision
+
+The public repository contains `kit/`, `design/`, `ui/`, the reference
+business modules and the reference application; a private catalog supplies
+commercial capabilities, and a private application composes the public
+foundation, selected catalog capabilities and client modules with its
+configuration and assets. The dependency direction is application → catalog →
+public foundation: modules cross boundaries through public contracts, not
+another module's implementation, and the public repository never imports or
+requires private code. Compatibility with a private consumer is tested in
+that consumer's repository.
+
+== Consequences
+
+* A releasable consumer pins a published version of the public module. During
+  development its `go.mod` may select a sibling checkout through `replace`;
+  that dependency must be explicit and available wherever the development
+  build runs, and a successful local build with a replacement does not
+  validate the version named in `require`, so before publishing the consumer
+  tests the selected published dependency without a machine-local path. The
+  consumer's release procedure owns that check.
+* Public documentation describes the consumer seam without naming private
+  repositories, catalog capabilities, clients or infrastructure. Client data,
+  private source, cluster state and credentials do not belong in the public
+  tree, and example tenants and configuration must not expose a customer's
+  identity or deployment: publishing source makes its history public, and
+  removing it later does not make that disclosure reversible.
+* The source and package ceilings in `loc-budget.json` and
+  `packages-budget.json` are the commitment; the record keeps no second table
+  of their values. `make check-loc` and `make check-packages` verify the
+  checked-out source, and a justified increase needs the separate owner review
+  `CONTRIBUTING.md` defines.
+* The foundation and each selected module provide independent migration
+  sources to one runner in composition order; the module name identifies its
+  history owner, versions increase within that owner, there are no global
+  repository ranges, and applied history is immutable, as specified in
+  ADR 0011.
+* The public application's build, tests and browser checks work without
+  private modules. Consumer compatibility remains a separate test obligation,
+  and a public release does not certify a private product's deployment or
+  user journeys.
+
+== Where it lives
+
+* {source-tree}/RELEASE.md[`RELEASE.md`] — the release procedure; its last section, "Update consumers", has consumers update their dependency in their own repositories, run their gates and release in dependency order, and warns that a local `replace` can hide a stale version pin, so the module actually selected is verified before a consumer is published. Budget ceilings are reviewed separately from implementation changes.
+* {source-tree}/loc-budget.json[`loc-budget.json`] — the line ceilings: one `max` per bucket (`kit`, `modules`, `ui`, `apps`, `tools`, `go_prod`, `go_testsupport`, `go_test`, `js`, `design_tooling`, `design_tooling_test`, `markdown`), each bucket selecting tracked files by path prefix, suffix and package-directory suffix.
+* {source-tree}/packages-budget.json[`packages-budget.json`] — the ceiling on first-party packages linked into the reference application, one `packages` number.
+* {source-tree}/tools/locbudget/main.go[`tools/locbudget/main.go`] — counts tracked source lines per bucket over `git ls-files`; `--check` exits 1 when a bucket is over its maximum, `--write` only ever lowers a maximum, and `--write --round 100` is the one operation that may raise one, which is why it is a separate flag and an owner's commit.
+* {source-tree}/scripts/check_packages.sh[`scripts/check_packages.sh`] — counts the `github.com/septagon-oss/platformkit/` packages that `go list -deps ./apps/platformkit` reaches and fails when the count exceeds `packages`; `--write` lowers the ceiling and never raises it.
+* {source-tree}/Makefile[`Makefile`] — `check-loc` (`go run ./tools/locbudget --check`) and `check-packages` (`./scripts/check_packages.sh`), both prerequisites of `make check`, which ends with `./scripts/check_imports.sh`.
+* {source-tree}/.github/workflows/ci.yml[`.github/workflows/ci.yml`] — the "Budgets only ratchet down" step: a `max` in `loc-budget.json` or the `packages` count higher than on `origin/main` fails the run, because `--write` cannot raise a ceiling but a hand edit can; then `make check` and `make e2e`.
+* {source-tree}/.github/workflows/release.yml[`.github/workflows/release.yml`] — on a `v*` tag, "The tag is on main" refuses a commit main never reached, then `make check` and `make e2e` run on the tagged tree; only then is the image built from `deploy/Dockerfile`, pushed to `ghcr.io/septagon-oss/platformkit`, given an SPDX SBOM by digest, and recorded in a GitHub release with that digest. `latest` moves only for a tag with no pre-release part.
+* {source-tree}/CHANGELOG.md[`CHANGELOG.md`] — reviewed when preparing a release; its `v1.0.0` entry says what the version promises about size is `loc-budget.json`.
+* {source-tree}/go.mod[`go.mod`] — the public module's dependency declarations, `module github.com/septagon-oss/platformkit`, with no private `require` and no `replace`.
+* {source-tree}/scripts/check_imports.sh[`scripts/check_imports.sh`] — module-boundary enforcement: every cross-module import is a `contracts/` import and `apps/` never reaches a module's `internal/`; a consumer calls it from its resolved foundation dependency with its own repository and dependency module paths.
+* {source-tree}/CONTRIBUTING.md[`CONTRIBUTING.md`] — "Keep budgets honest": remove what a change replaces first, and if the remaining cost is justified, obtain a separate owner budget commit before the implementation.
+
+== Evidence
+
+[source,sh]
+----
+make check-loc                 # go run ./tools/locbudget --check
+make check-packages            # ./scripts/check_packages.sh
+./scripts/check_imports.sh
+make check && make e2e         # what release.yml runs on the tagged tree
+----
+
+The record is precise about what it does not claim. A successful local build
+with a `replace` does not validate the version named in `require`; that check
+belongs to the consumer's release procedure, in the consumer's repository.
+Consumer compatibility remains a separate test obligation, and a public
+release does not certify a private product's deployment or user journeys.

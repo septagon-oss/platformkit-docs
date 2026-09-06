@@ -1,0 +1,108 @@
+= 0008 — Prices are the operator's
+
+Status: accepted, 2026-09-03. The record is
+{source-tree}/docs/adr/0008-prices-are-the-operators.md[`docs/adr/0008-prices-are-the-operators.md`];
+this page is its map and its summary and states nothing the record does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/decisions/0008-prices-are-the-operators.html" title="ADR 0008 — Prices are the operator's" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/decisions/0008-prices-are-the-operators.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>decisions/0008-prices-are-the-operators</code> in the record</figcaption>
+</figure>
+++++
+
+== Context
+
+`modules/billing` shipped its plan catalogue as an ordinary tenant-owned table:
+`billing_plans` carried a `tenant_id`, was scoped by row-level security like
+every other table, and was written under `billing:manage`, the same permission
+that subscribes and cancels. Every tenant's own administrator holds that
+permission, because the admin role a tenant is created with carries the
+wildcard. So the E5 review, from a subscription that was `past_due`, did
+`POST /api/v1/billing/plans` with a free plan and then
+`POST /api/v1/billing/subscription/subscribe` naming it: the plan change left
+the period alone, as documented, the next renewal charged nothing, and the
+debt vanished without anything in the system having been asked a question it
+could refuse. The record calls that a missing seam rather than a bug in the
+subscription lifecycle: a price list is a thing the installation sells, the
+customer is the party being sold to, and the two had one permission and one
+table.
+
+== Decision
+
+The catalogue is the operator's: there is one of it, every tenant reads it,
+and only the operator writes it. `billing:catalog` is a new permission,
+declared `Operator: true` in the manifest, and the plan `rest.Spec` declares
+`OperatorWrite: true`, so create, update and delete are mounted with
+`httpx.OperatorPermission`, which the kernel refuses at any tenant but the
+operator's own before it asks the roles table anything and which no wildcard
+satisfies. `billing:manage` keeps what a customer legitimately does to its own
+subscription, subscribe and cancel; `billing:read` is unchanged, because every
+tenant has to read the price list it is choosing from; `migrations/000016`
+gives `billing_plans` the policy
+`USING (true) WITH CHECK (platformkit_tenant_match(tenant_id))` and a unique
+index on `code` that is global rather than per-tenant; a plan change is refused
+while the subscription is `past_due`; and the price a subscription is billed at
+is stamped on the subscription, so a catalogue the customer does not control is
+also a catalogue whose edits are not retroactive.
+
+== Consequences
+
+* One shared catalogue, read by all and written by the operator alone, chosen
+  over per-tenant copies seeded by the operator. The copies would have kept
+  every query in the module a tenant query and cost a fan-out on every plan
+  change with a reconciliation for the tenants it did not reach, an answer to
+  what happens to the copy a tenant edited, a `plan_id` that means a different
+  row in every tenant, and a customer that could still write its own rows: the
+  hole moved rather than closed.
+* One exception to "every table is tenant-scoped", written into the migration,
+  into `modules/billing/module.go` and into the record, because an exception
+  nobody wrote down is the one somebody copies.
+* `RefuseWhileSubscribed`, the hook that stops the operator deleting a plan
+  people are still on, counts under system access: the catalogue is shared, so
+  the operator's own transaction would have seen only the operator's
+  subscriptions and reported nothing about anybody else's.
+* `rest.Spec` grows `OperatorWrite`. The alternative was `modules/billing`
+  hand-writing five routes to change one declaration, which is what
+  `modules/tenant` had to do and which the E5 review named as a kernel gap.
+* `httpx.Resource` grows the same flag, because the generated admin screen calls
+  the resource's closures directly and those carry their own authorization: a
+  screen guarded by the bare permission would have let a customer's wildcard
+  write a plan through the form after the API refused it.
+* A deployment with one tenant that is the operator sees no difference.
+
+== Where it lives
+
+* {source-tree}/modules/billing/module.go[`modules/billing/module.go`] — the plan `rest.Spec` with `Write: contracts.PermissionBillingCatalog` and `OperatorWrite: true`, the manifest declaring `billing:catalog` with `Operator: true`, and `RefuseWhileSubscribed` on delete.
+* {source-tree}/modules/billing/contracts/permissions.go[`modules/billing/contracts/permissions.go`] — the three permissions, `billing:read`, `billing:manage` and `billing:catalog`, and what each one keeps.
+* {source-tree}/migrations/000016_billing.up.sql[`migrations/000016_billing.up.sql`] — the `billing_plans_catalogue` policy, `USING (true) WITH CHECK (platformkit_tenant_match(tenant_id))`, and the unique index on `code` that is not prefixed by the tenant.
+* {source-tree}/kit/httpx/auth.go[`kit/httpx/auth.go`] — `httpx.OperatorPermission`, a declaration kind of its own so `/openapi.json` says which of the two a route is.
+* {source-tree}/kit/httpx/middleware.go[`kit/httpx/middleware.go`] — `authorize`, which answers `AUTH_NOT_OPERATOR` at any tenant but the operator's before the Authorizer is asked.
+* {source-tree}/kit/rest/rest.go[`kit/rest/rest.go`] — `Spec.OperatorWrite`, which mounts create, update and delete with `httpx.OperatorPermission(Write)`.
+* {source-tree}/kit/httpx/schemas.go[`kit/httpx/schemas.go`] — `Resource.OperatorWrite`, so the closures a generated screen calls carry the same declaration.
+* {source-tree}/kit/app/app.go[`kit/app/app.go`] — `validatePermissions`, the boot gate that refuses a route and a manifest that disagree about `Operator`.
+* {source-tree}/modules/tenant/internal/handler.go[`modules/tenant/internal/handler.go`] — `tenant.Bootstrap`, the only writer of `Operator: true`; `NewTenant.Operator` is `json:"-"`, so no request body carries it.
+* {source-tree}/apps/platformkit/bootstrap.go[`apps/platformkit/bootstrap.go`] — the `bootstrap` command that creates the operator's tenant through it.
+* {source-tree}/modules/auth/internal/seed.go[`modules/auth/internal/seed.go`] — `SeedRoles`, which adds the operator grants to the admin role only when `tenant.Operator`.
+* {source-tree}/apps/platformkit/modules.go[`apps/platformkit/modules.go`] — `seedRoles`, naming `billing:catalog` beside `tenant:manage` as the operator grants the application composes.
+* {source-tree}/modules/admin/internal/pages.go[`modules/admin/internal/pages.go`] — the tenant switcher, declared with `httpx.OperatorPermission` the same way, so the kernel refuses it before the Authorizer is asked.
+
+== Evidence
+
+[source,sh]
+----
+go test ./modules/billing -run 'TestThePriceListIsTheOperators|TestTheGeneratedScreenIsGuardedTheSameWay'
+go test ./kit/httpx -run 'TestAnOperatorRouteIsRefusedBeforeTheAuthorizer'
+go test ./kit/app -run 'TestBootRefusesARouteAndAManifestThatDisagreeAboutTheOperator'
+----
+
+The record names no command of its own; the three above are the tests beside
+the files it names. It is precise about what the seam leaves alone:
+`billing:read` stays what it was, because a price list nobody can see is a
+price list nobody can buy from, and a deployment with one tenant that is the
+operator sees no difference.

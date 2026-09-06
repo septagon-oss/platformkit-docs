@@ -11,13 +11,13 @@ gate that keeps it true, and what was rejected.
 |===
 | ADR | Title | The decision in one sentence
 
-| {source-tree}/docs/adr/0001-one-repository.md[0001]
+| xref:decisions/0001-one-repository.adoc[0001]
 | One repository
 | The kernel, the modules a reference architecture needs, the UI and the
   reference application live in one public repository; private catalogs and
   clients consume it by tag.
 
-| {source-tree}/docs/adr/0002-explicit-wiring.md[0002]
+| xref:decisions/0002-explicit-wiring.adoc[0002]
 | Explicit wiring
 | An application is a list of `Module(Deps{...})` calls in `main`; the compiler
   checks the graph, and there is no dependency-injection container, registry or
@@ -28,42 +28,42 @@ gate that keeps it true, and what was rejected.
 | Tenant isolation is `FORCE ROW LEVEL SECURITY` set per transaction, with
   `db.Tx[db.Tenant]` and `db.Tx[db.System]` as distinct types.
 
-| {source-tree}/docs/adr/0004-events-are-the-job-queue.md[0004]
+| xref:decisions/0004-events-are-the-job-queue.adoc[0004]
 | Events are the job queue
 | One transactional outbox relayed to JetStream is the queue; `kit/jobs` is a
   schedule plus an advisory lock for the one thing an outbox cannot express.
 
-| {source-tree}/docs/adr/0005-roles-and-who-migrates.md[0005]
+| xref:decisions/0005-roles-and-who-migrates.adoc[0005]
 | Roles and who migrates
 | One binary with `--role web{vbar}worker{vbar}all`; every role migrates behind an
   advisory lock at start.
 
-| {source-tree}/docs/adr/0006-system-access-is-a-token.md[0006]
+| xref:decisions/0006-system-access-is-a-token.adoc[0006]
 | System access is a token
 | Cross-tenant access is a capability handed to a module at wiring time, so
   every crossing is visible in the composition.
 
-| {source-tree}/docs/adr/0007-screens-are-derived-from-schemas.md[0007]
+| xref:decisions/0007-screens-are-derived-from-schemas.adoc[0007]
 | Screens are derived from schemas
 | A screen is generated from a resource's schema, and a hand-written screen is
   an exception that has to earn itself.
 
-| {source-tree}/docs/adr/0008-prices-are-the-operators.md[0008]
+| xref:decisions/0008-prices-are-the-operators.adoc[0008]
 | Prices are the operator's
 | The price list is read by every tenant and written by the operator's tenant
   alone, as an operator permission the kernel refuses elsewhere.
 
-| {source-tree}/docs/adr/0009-what-is-public.md[0009]
+| xref:decisions/0009-what-is-public.adoc[0009]
 | What is public
 | The seam between the public repository and the private ones: what is never
   published, the `replace` lifecycle, and the ceilings as a commitment.
 
-| {source-tree}/docs/adr/0010-a-limit-is-a-row.md[0010]
+| xref:decisions/0010-a-limit-is-a-row.adoc[0010]
 | A limit is a row
 | Rate limits are rows in Postgres shared by every replica, not per-process
   counters.
 
-| {source-tree}/docs/adr/0011-migration-ownership.md[0011]
+| xref:decisions/0011-migration-ownership.adoc[0011]
 | Capabilities own migration progress
 | Each capability numbers its own SQL; one runner applies them in composition
   order, commits each file with its history row, and keeps no down files.

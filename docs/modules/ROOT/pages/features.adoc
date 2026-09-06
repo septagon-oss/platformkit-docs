@@ -11,9 +11,39 @@ it, and how it is verified. The map's source is kept in the programme record.
 |===
 | Feature | In one line
 
+| xref:features/tenant.adoc[Tenants]
+| A tenant is one customer of the platform: a slug, a name, the hosts it is served at, and every row in every other table belongs to exactly one.
+
+| xref:features/user.adoc[Users]
+| A user is one person in one tenant: the address they sign in with, a name to show, a lifecycle status and the roles they hold.
+
+| xref:features/auth.adoc[Signing in]
+| Signing in is sessions, passwords, single sign-on, and the roles that decide what a caller may do.
+
+| xref:features/admin.adoc[Admin shell]
+| The admin shell is the pages a person sees, as opposed to the routes a program calls.
+
+| xref:features/audit.adoc[Audit]
+| The audit trail is the record of what happened in a tenant: every event any module publishes becomes one row saying what happened, who caused it and when, kept for as long as the deployment is obliged to keep it and read by whoever holds `audit:read`.
+
+| xref:features/notification.adoc[Notifications]
+| A notification is one thing one person was told, in one tenant: a title, the rest of the message, and a path within the application it points at, sent by mail as well when the caller asks.
+
+| xref:features/billing.adoc[Billing]
+| A plan is something the installation sells, priced per month or per year, and a subscription is a tenant's enrollment in one: a tenant is the customer, so it has one.
+
+| xref:features/content.adoc[Content]
+| A page or a post is what a tenant's public site is made of: a name it is reached by, a title, a body in Markdown and a status that decides whether the site serves it.
+
+| xref:features/site.adoc[Site]
+| A site is what a tenant shows the public: a name and a tagline, a home page, a colour scheme and a navigation.
+
+| xref:features/file.adoc[Files]
+| A file is a row and a blob: the row is in Postgres under the tenant's own policy, and the bytes are wherever the storage the deployment wired puts them.
+
 | xref:features/task.adoc[Tasks]
-| Work with a deadline, an owner and a status; a breached deadline is a recorded fact. The exemplar every module copied.
+| A task is a piece of work with a deadline, an owner and a status, raised by whoever raises it and resolved by whoever is assigned.
 |===
 
-The private catalog and client modules — `cart`, `payment`, `collectibles` —
-follow the same template in their own repositories and are not published here.
+The private catalog and client modules follow the same template in their own
+repositories and are not published here (ADR 0009).
