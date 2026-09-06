@@ -44,6 +44,9 @@ from the code. The map's source is kept in the programme record.
 | xref:features/file.adoc[Files]
 | A file is a row and a blob: the row is in Postgres under the tenant's own policy, and the bytes are wherever the storage the deployment wired puts them.
 
+| xref:features/web.adoc[The public site]
+| The public site is what an anonymous visitor reads at the root of a tenant's host: the page the site settings name as the home, any published page by its slug, and an honest empty state until an operator has published one.
+
 | xref:features/task.adoc[Tasks]
 | A task is a piece of work with a deadline, an owner and a status, raised by whoever raises it and resolved by whoever is assigned.
 |===

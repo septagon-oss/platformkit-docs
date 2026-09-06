@@ -13,6 +13,7 @@
 ** xref:features/content.adoc[Content]
 ** xref:features/site.adoc[Site]
 ** xref:features/file.adoc[Files]
+** xref:features/web.adoc[The public site]
 ** xref:features/task.adoc[Tasks]
 * xref:clients.adoc[A client is configuration]
 * xref:ui.adoc[Components, pages and screens]

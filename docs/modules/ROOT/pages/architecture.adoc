@@ -191,7 +191,8 @@ From a pull request through the gates to a tagged image with its SBOM and a clus
 
 | `modules/`
 | business modules, each `contracts/` + `internal/` + `module.go`: tenant,
-  user, auth, admin, audit, notification, billing, content, site, file, task
+  user, auth, admin, audit, notification, billing, content, site, file, task,
+  and web, the public site
 
 | `ui/`
 | typed components with their gallery of typed examples, the class builder,

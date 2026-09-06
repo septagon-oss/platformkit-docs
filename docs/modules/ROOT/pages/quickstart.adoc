@@ -16,9 +16,12 @@ none, and serves on `:8080`. The generated administrator password is printed
 once; keep it private. A second `start` in the same directory finds the tenant
 and serves it again. Ctrl+C stops the application and its database.
 
-Then open http://platformkit.localhost:8080/admin/login. The request host
-selects the tenant, so use `platformkit.localhost` and not `localhost` or an
-arbitrary alias. The component gallery is at `/admin/_gallery`.
+It prints three addresses. http://platformkit.localhost:8080/ is the public
+site, empty until you publish a page; http://platformkit.localhost:8080/admin/login
+is the operator's admin; http://platformkit.localhost:8080/docs is the API
+documentation. The request host selects the tenant, so use
+`platformkit.localhost` and not `localhost` or an arbitrary alias. The
+component gallery is at `/admin/_gallery`.
 
 `--data` moves the data directory and `--addr` the listening address. The
 source is {source-tree}/apps/platformkit/start.go[`apps/platformkit/start.go`];

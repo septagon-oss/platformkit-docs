@@ -1,0 +1,69 @@
+= The public site
+
+The public site is what an anonymous visitor reads at the root of a tenant's
+host: the page the site settings name as the home, any published page by its
+slug, and an honest empty state until an operator has published one. It writes
+nothing of its own — it renders what the site and content modules publish,
+composed from `ui/page` and `ui/components` the way the admin is, with a bar
+where the admin has a sidebar. The module is
+{source-tree}/modules/web[`modules/web`]; this page states nothing that tree
+does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/features/web.html" title="The public site — the module and its seams" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/features/web.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>features/web</code> in the record</figcaption>
+</figure>
+++++
+
+== What it promises
+
+[cols="1,3"]
+|===
+| Entity | None. The site owns no table and no entity; every field it shows is the site module's `SiteSettings` or the content module's `Content`.
+| Events | None.
+| Permissions | None. Both routes are public and read-only.
+| Service | None. Nothing takes the site as a dependency; it is the surface.
+|===
+
+== Routes and screens
+
+* `GET /` — the home: the published content whose slug is the settings' `homeSlug`. A fresh installation, with no home slug, says "Nothing published yet" and links to the admin; a home slug nothing published has says so too. Both answer 200, because a site with nothing on it is a state, not a failure.
+* `GET /\{slug}` — one published page. A draft, an archived page, a slug nobody has used and a path that is not a slug are the same 404, rendered as a page with a way back to the site, which is the content module's rule for its own public read.
+* Both are HTML documents served through `page.Serve` with `httpx.Public()`; neither is in the OpenAPI document, which lists JSON routes. Screens: the site is its own screen; there is no admin page for the module, because it has nothing to configure that the site settings do not hold.
+
+== Authorization
+
+Neither route asks for a session or a permission. A host that resolves to no tenant serves no site and answers 404; a database that cannot be reached answers 503 rather than an empty site.
+
+== Events, jobs and subscriptions
+
+* Publishes nothing, runs no job, subscribes to nothing. When an operator changes the settings or publishes a page, the next request reads the change: the site renders on read and caches nothing.
+
+== What it needs
+
+[cols="1,1,2"]
+|===
+| `Deps` field | Interface | Supplied by
+| `Site` | `sitecontracts.Service` | the site module's service, from `site.Module` in {source-tree}/apps/platformkit/modules.go[`apps/platformkit/modules.go`]
+| `Content` | `contentcontracts.Service` | the content module's service, from `content.Module` in the same file; the rendered HTML comes from {source-tree}/modules/content/contracts/render.go[`contracts.Render`], the same Markdown renderer and sanitizer the content module's public route uses
+| `Theme` | `design.Pair` | `design.Default()`; the tenant's own choices are applied per document from the settings: `theme` pins `data-theme` when it is `light` or `dark`, and `primaryColor` overrides the accent token
+|===
+
+`Module` panics without the two services. Configuration: none; the site reads the tenant's settings on every request.
+
+== Who uses it
+
+* An anonymous visitor at the tenant's host. No module imports it and no module may: a product with a storefront of its own composes that instead, and the root belongs to one module, so two claiming it is a boot failure rather than a coin toss.
+* The reference application's `start` command prints its address beside the admin's and the API documentation's.
+
+== Verification
+
+* `go test ./modules/web/...` — the empty state and its link, the published home with the tenant's theme and colour pinned, a page by slug, the 404 page with a way back for an unknown slug and a path that is not one, and a host that serves no site; over the two modules' fakes and a real connection.
+* `make e2e` — {source-tree}/e2e/site.spec.ts[`e2e/site.spec.ts`] reads the empty state, signs in, publishes a page and names it the home through the JSON routes, and reads it at `/` with the navigation and the pinned theme.
+* Not proven: the logo, which is rendered from a file id but not exercised by a test; and a tenant's `primaryColor` reaching the rendered Markdown's links, which the prose sheet does through the accent token but no test renders in a browser.

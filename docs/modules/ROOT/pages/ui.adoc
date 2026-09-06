@@ -71,9 +71,14 @@ for it. When that matters, the answer is a hand-written screen for that
 interaction — the reference application has five, and each says why — not a
 tag that makes the generator cleverer. This is xref:decisions.adoc[ADR 0007].
 
-== Three shells, one abstraction
+== Four shells, one abstraction
 
-The admin module is composition only: one `Chrome`, one `Frame` (sidebar,
+The public site is the smallest: two public routes, a bar with the site's
+title, tagline, logo and navigation from the site settings, an article from
+the content module's renderer, the tenant's theme and colour pinned per
+document, and no controller of its own. It is
+xref:features/web.adoc[`modules/web`], composed only where no storefront
+claims the root. The admin module is composition only: one `Chrome`, one `Frame` (sidebar,
 header, footer, the confirm dialog), one `Navigation` value computed once from
 what the application serves, five hand-written pages, and `screens.Mount` per
 resource. A client's storefront is the same shape with a bar where the admin
