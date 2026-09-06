@@ -1,4 +1,5 @@
 = Architecture
+:toclevels: 3
 
 The authoritative statement is {source-tree}/ARCHITECTURE.md[`ARCHITECTURE.md`]
 in the repository, which follows a request from the composition to the
@@ -8,75 +9,185 @@ xref:decisions.adoc[ADRs]. This page is the map.
 == The maps
 
 The maps are nested: one for the workspace, three for the system, and nine
-for its flows. Each is an interactive page whose JSON source is kept beside it
-in the programme record; each was authored from the code on 2026-09-06 and
-checked for containment at four desktop sizes from 1440×900 to 2048×1320.
-Open a map, then the map below it for the part you are reading about.
+for its flows. Each is embedded below and opens full screen from the link
+under it; its JSON source is kept beside it in the programme record. Every
+map was authored from the code on 2026-09-06 and checked for containment at
+four desktop sizes from 1440×900 to 2048×1320. Inside a map, drag to pan,
+scroll to zoom, and use the guided views where a map offers them.
+
+++++
+<style>
+/* This page is the maps: give them the width the right-hand contents column and the reading measure would otherwise take. */
+.doc { max-width: none; }
+aside.toc.sidebar { display: none; }
+.map-embed { margin: 0.75rem 0 2.25rem; }
+.map-embed iframe { display: block; width: 100%; height: 900px; border: 1px solid #d9d9d9; border-radius: 10px; background: #fff; }
+.map-embed figcaption { font-size: 0.85em; margin-top: 0.45rem; color: #5d5d5d; }
+@media (max-width: 1024px) { .map-embed iframe { height: 640px; } }
+</style>
+++++
 
 === Level 0 — the repositories
 
-* link:{attachmentsdir}/platformkit-workspace.html[The repositories and where
-  each thing lives^] — the public foundation, the native shell and this site;
-  the private catalog and clients; GitHub Actions, the image registry, the
-  clusters, Postgres and JetStream.
+==== The repositories and where each thing lives
+
+The public foundation, the native shell and this site; the private catalog and clients; GitHub Actions, the image registry, the clusters, Postgres and JetStream.
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/platformkit-workspace.html" title="The repositories and where each thing lives" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/platformkit-workspace.html" target="_blank" rel="noopener">Open the repositories and where each thing lives full screen</a> · source <code>platformkit-workspace</code> in the record</figcaption>
+</figure>
+++++
 
 === Level 1 — the system
 
-* link:{attachmentsdir}/platformkit-composability.html[How the pieces
-  compose^] — `client.yaml` names modules, `main` constructs them, the kernel
-  serves them under a tenant transaction; one UI with three shells; the
-  schema seam; the design export to an editor.
-* link:{attachmentsdir}/platformkit-foundation.html[The layers inside the
-  public repository^] — `kit/`, `modules/`, `ui/` and `design/`, `apps/` and
-  `tools/`, and which layer composes which.
-* link:{attachmentsdir}/platformkit-modules.html[The composed modules and who
-  depends on whom^] — the flagship's fourteen modules across three
-  repositories and their `Deps` edges, in the order the registry constructs
-  them.
+==== How the pieces compose
+
+`client.yaml` names modules, `main` constructs them, the kernel serves them under a tenant transaction; one UI with three shells; the schema seam; the design export to an editor.
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/platformkit-composability.html" title="How the pieces compose" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/platformkit-composability.html" target="_blank" rel="noopener">Open how the pieces compose full screen</a> · source <code>platformkit-composability</code> in the record</figcaption>
+</figure>
+++++
+
+==== The layers inside the public repository
+
+`kit/`, `modules/`, `ui/` and `design/`, `apps/` and `tools/`, and which layer composes which.
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/platformkit-foundation.html" title="The layers inside the public repository" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/platformkit-foundation.html" target="_blank" rel="noopener">Open the layers inside the public repository full screen</a> · source <code>platformkit-foundation</code> in the record</figcaption>
+</figure>
+++++
+
+==== The composed modules and who depends on whom
+
+The flagship's fourteen modules across three repositories and their `Deps` edges, in the order the registry constructs them.
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/platformkit-modules.html" title="The composed modules and who depends on whom" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/platformkit-modules.html" target="_blank" rel="noopener">Open the composed modules and who depends on whom full screen</a> · source <code>platformkit-modules</code> in the record</figcaption>
+</figure>
+++++
 
 === Level 2 — the flows
 
-[cols="1,3"]
-|===
-| Flow | What it follows
+==== Boot
 
-| link:{attachmentsdir}/flow-boot.html[Boot^]
-| `config.Load`, `compose`, `app.New`, the migrations, the boot gates and the
-  split into `web`, `worker` and `all`.
+`config.Load`, `compose`, `app.New`, the migrations, the boot gates and the split into `web`, `worker` and `all`.
 
-| link:{attachmentsdir}/flow-request.html[One request^]
-| From the request host to the commit: headers, request id, tenant, the lazy
-  transaction, the session, the declared authorization, the handler, row-level
-  security, the outbox row and the buffered response.
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/flow-boot.html" title="Boot" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/flow-boot.html" target="_blank" rel="noopener">Open boot full screen</a> · source <code>flow-boot</code> in the record</figcaption>
+</figure>
+++++
 
-| link:{attachmentsdir}/flow-events.html[Events and jobs^]
-| From a committed outbox row through the relay and JetStream to a handler in
-  the event's tenant transaction; the scheduler and the module jobs.
+==== One request
 
-| link:{attachmentsdir}/flow-seam.html[The schema seam^]
-| One entity struct to five routes, seven generated pages, the resources JSON,
-  the native shell's screens and the OpenAPI document.
+From the request host to the commit: headers, request id, tenant, the lazy transaction, the session, the declared authorization, the handler, row-level security, the outbox row and the buffered response.
 
-| link:{attachmentsdir}/flow-design.html[Design^]
-| Tokens and class lists to one stylesheet; the gallery's typed examples to a
-  snapshot, the export tool and the OpenPencil foundation file.
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/flow-request.html" title="One request" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/flow-request.html" target="_blank" rel="noopener">Open one request full screen</a> · source <code>flow-request</code> in the record</figcaption>
+</figure>
+++++
 
-| link:{attachmentsdir}/flow-client.html[A client^]
-| `client.yaml` and assets through the flagship's loader and registry to a
-  bootstrapped tenant with an admin and a storefront.
+==== Events and jobs
 
-| link:{attachmentsdir}/flow-mobile.html[The native shell^]
-| Sign in, keep the cookie, read the seam, derive the screens, call the same
-  five routes.
+From a committed outbox row through the relay and JetStream to a handler in the event's tenant transaction; the scheduler and the module jobs.
 
-| link:{attachmentsdir}/flow-start.html[`start`^]
-| From nothing to a running application: an embedded Postgres, the role, the
-  first tenant, the combined role, Ctrl+C.
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/flow-events.html" title="Events and jobs" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/flow-events.html" target="_blank" rel="noopener">Open events and jobs full screen</a> · source <code>flow-events</code> in the record</figcaption>
+</figure>
+++++
 
-| link:{attachmentsdir}/flow-delivery.html[Delivery^]
-| From a pull request through the gates to a tagged image with its SBOM and a
-  cluster that pulls it.
-|===
+==== The schema seam
+
+One entity struct to five routes, seven generated pages, the resources JSON, the native shell's screens and the OpenAPI document.
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/flow-seam.html" title="The schema seam" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/flow-seam.html" target="_blank" rel="noopener">Open the schema seam full screen</a> · source <code>flow-seam</code> in the record</figcaption>
+</figure>
+++++
+
+==== Design
+
+Tokens and class lists to one stylesheet; the gallery's typed examples to a snapshot, the export tool and the OpenPencil foundation file.
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/flow-design.html" title="Design" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/flow-design.html" target="_blank" rel="noopener">Open design full screen</a> · source <code>flow-design</code> in the record</figcaption>
+</figure>
+++++
+
+==== A client
+
+`client.yaml` and assets through the flagship's loader and registry to a bootstrapped tenant with an admin and a storefront.
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/flow-client.html" title="A client" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/flow-client.html" target="_blank" rel="noopener">Open a client full screen</a> · source <code>flow-client</code> in the record</figcaption>
+</figure>
+++++
+
+==== The native shell
+
+Sign in, keep the cookie, read the seam, derive the screens, call the same five routes.
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/flow-mobile.html" title="The native shell" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/flow-mobile.html" target="_blank" rel="noopener">Open the native shell full screen</a> · source <code>flow-mobile</code> in the record</figcaption>
+</figure>
+++++
+
+==== The start command
+
+From nothing to a running application: an embedded Postgres, the role, the first tenant, the combined role, Ctrl+C.
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/flow-start.html" title="The start command" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/flow-start.html" target="_blank" rel="noopener">Open the start command full screen</a> · source <code>flow-start</code> in the record</figcaption>
+</figure>
+++++
+
+==== Delivery
+
+From a pull request through the gates to a tagged image with its SBOM and a cluster that pulls it.
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/flow-delivery.html" title="Delivery" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/flow-delivery.html" target="_blank" rel="noopener">Open delivery full screen</a> · source <code>flow-delivery</code> in the record</figcaption>
+</figure>
+++++
 
 == Layout
 
