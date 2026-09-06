@@ -5140,8 +5140,8 @@
         <text data-detail="fine" x="625" y="265" class="t-cloud" font-size="7" text-anchor="middle">one flagship image</text>
         </g>
 
-        <g id="node-migrate" data-node-id="migrate" data-node-label="db.Migrate" tabindex="0" role="button" aria-label="Focus db.Migrate, 1…, 1001…, 2001…, kit/app App.Run · hosts.&lt;env&gt; › Compose" aria-pressed="false" data-node-kind="database" data-node-sublabel="1…, 1001…, 2001…" data-node-tag="in composition order" data-node-context="kit/app App.Run · hosts.&lt;env&gt; › Compose">
-          <title>db.Migrate · 1…, 1001…, 2001… · kit/app App.Run · hosts.&lt;env&gt; › Compose · in composition order</title>
+        <g id="node-migrate" data-node-id="migrate" data-node-label="db.Migrate" tabindex="0" role="button" aria-label="Focus db.Migrate, per owner, in order, kit/app App.Run · hosts.&lt;env&gt; › Compose" aria-pressed="false" data-node-kind="database" data-node-sublabel="per owner, in order" data-node-tag="in composition order" data-node-context="kit/app App.Run · hosts.&lt;env&gt; › Compose">
+          <title>db.Migrate · per owner, in order · kit/app App.Run · hosts.&lt;env&gt; › Compose · in composition order</title>
           <rect x="380" y="333" width="100" height="68" rx="6" class="c-mask"/>
           <rect x="380" y="333" width="100" height="68" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(386 339) scale(0.6875)">
@@ -5149,7 +5149,7 @@
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="430" y="354" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">db.Migrate</text>
-          <text data-detail="context" x="430" y="371" class="t-muted" font-size="8" text-anchor="middle">1…, 1001…, 2001…</text>
+          <text data-detail="context" x="430" y="371" class="t-muted" font-size="8" text-anchor="middle">per owner, in order</text>
         <text data-detail="fine" x="430" y="389" class="t-database" font-size="7" text-anchor="middle">in composition order</text>
         </g>
 
@@ -5416,7 +5416,7 @@
         </div>
         <ul>
           <li>&bull; One flagship image serves every client</li>
-          <li>&bull; deploy/clients/&lt;slug&gt; holds the Helm values</li>
+          <li>&bull; the chart&#39;s values per client live beside it</li>
         </ul>
       </div>
 
@@ -5438,7 +5438,7 @@
         </div>
         <ul>
           <li>&bull; registry.go orders: audit next to last, admin last</li>
-          <li>&bull; payment implements billing.PaymentProvider</li>
+          <li>&bull; a private provider implements billing.PaymentProvider</li>
         </ul>
       </div>
     </div>

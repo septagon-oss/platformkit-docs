@@ -5032,18 +5032,18 @@
         <!-- Boundaries (behind everything) -->
         <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" data-composition-frame-label="github.com/septagon-oss (public)" x="214" y="10" width="476" height="274" rx="12" class="c-region" stroke-width="1"/>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="1" data-composition-frame-label="github.com/septagon-dev (private)" x="724" y="170" width="326" height="254" rx="12" class="c-region" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="1" data-composition-frame-label="private repositories" x="724" y="170" width="326" height="254" rx="12" class="c-region" stroke-width="1"/>
 
         <!-- Connection paths (before components for correct z-order) -->
         <path data-edge-from="catalog" data-edge-to="foundation" data-edge-label="go.mod requires v1.0.0" data-edge-key="0" data-edge-id="catalog-requires-foundation" data-composition-points="817,372;651.5,372;651.5,239;486,239" d="M 817 372 L 659.5 372 Q 651.5 372 651.5 364 L 651.5 247 Q 651.5 239 643.5 239 L 486 239" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="clients" data-edge-to="catalog" data-edge-label="requires · replace between tags" data-edge-key="1" data-edge-id="clients-requires-catalog" data-composition-points="887,264;887,340" d="M 887 264 L 887 340" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="clients" data-edge-to="catalog" data-edge-label="requires · replace between tags" data-edge-key="1" data-edge-id="clients-requires-catalog" data-composition-points="887,264;887,288;909,288;909,316;893,316;893,340" d="M 887 264 L 887 280 Q 887 288 895 288 L 901 288 Q 909 288 909 296 L 909 308 Q 909 316 901 316 L 901 316 Q 893 316 893 324 L 893 340" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="clients" data-edge-to="foundation" data-edge-label="requires" data-edge-key="2" data-edge-id="clients-requires-foundation" data-composition-points="754,225;486,225" d="M 754 225 L 486 225" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="mobile" data-edge-to="foundation" data-edge-label="GET /api/v1/admin/resources" data-edge-key="3" data-edge-id="mobile-reads-seam" data-composition-points="358,104;358,200" d="M 358 104 L 358 200" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="docs" data-edge-to="foundation" data-edge-label="links to the source of truth" data-edge-key="4" data-edge-id="docs-links-source" data-composition-points="590,104;590,152;372,152;372,200" d="M 590 104 L 590 144 Q 590 152 582 152 L 380 152 Q 372 152 372 160 L 372 200" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="record" data-edge-to="foundation" data-edge-label="describes" data-edge-key="5" data-edge-id="record-describes" data-composition-points="170,232;244,232" d="M 170 232 L 244 232" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="foundation" data-edge-to="actions" data-edge-label="ci.yml on push · release.yml on v* tag" data-edge-key="6" data-edge-id="foundation-to-actions" data-composition-points="365,264;365,475" d="M 365 264 L 365 475" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="actions" data-edge-to="registry" data-edge-label="image + SBOM" data-edge-key="7" data-edge-id="actions-to-registry" data-composition-points="435,507;556,507" d="M 435 507 L 556 507" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="clients" data-edge-to="clusters" data-edge-label="Helm chart · Flux" data-edge-key="8" data-edge-id="clients-to-clusters" data-composition-points="1020,232;1196,232;1196,475" d="M 1020 232 L 1188 232 Q 1196 232 1196 240 L 1196 475" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="clients" data-edge-to="clusters" data-edge-label="chart · cluster state" data-edge-key="8" data-edge-id="clients-to-clusters" data-composition-points="1020,232;1196,232;1196,475" d="M 1020 232 L 1188 232 Q 1196 232 1196 240 L 1196 475" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="registry" data-edge-to="clusters" data-edge-label="pulled by the chart" data-edge-key="9" data-edge-id="registry-to-clusters" data-composition-points="798,507;1075,507" d="M 798 507 L 1075 507" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="clusters" data-edge-to="postgres" data-edge-label="Tx[Tenant] · migrations as owner" data-edge-key="10" data-edge-id="clusters-to-postgres" data-composition-points="1189,539;1189,584.5;930,584.5;930,630" d="M 1189 539 L 1189 576.5 Q 1189 584.5 1181 584.5 L 938 584.5 Q 930 584.5 930 592.5 L 930 630" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="clusters" data-edge-to="nats" data-edge-label="outbox relay · durable consumers" data-edge-key="11" data-edge-id="clusters-to-nats" data-composition-points="1203,539;1203,630" d="M 1203 539 L 1203 630" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
@@ -5091,27 +5091,27 @@
         <text data-detail="fine" x="590" y="96" class="t-frontend" font-size="7" text-anchor="middle">public</text>
         </g>
 
-        <g id="node-catalog" data-node-id="catalog" data-node-label="platformkit-catalog" tabindex="0" role="button" aria-label="Focus platformkit-catalog, cart · payment (Stripe), github.com/septagon-dev (private)" aria-pressed="false" data-node-kind="backend" data-node-sublabel="cart · payment (Stripe)" data-node-tag="private" data-node-context="github.com/septagon-dev (private)">
-          <title>platformkit-catalog · cart · payment (Stripe) · github.com/septagon-dev (private) · private</title>
-          <rect x="817" y="340" width="140" height="64" rx="6" class="c-mask"/>
-          <rect x="817" y="340" width="140" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
+        <g id="node-catalog" data-node-id="catalog" data-node-label="the private catalog" tabindex="0" role="button" aria-label="Focus the private catalog, catalog modules · payments, private repositories" aria-pressed="false" data-node-kind="backend" data-node-sublabel="catalog modules · payments" data-node-tag="private" data-node-context="private repositories">
+          <title>the private catalog · catalog modules · payments · private repositories · private</title>
+          <rect x="817" y="340" width="152" height="64" rx="6" class="c-mask"/>
+          <rect x="817" y="340" width="152" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(823 346) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="887" y="370" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">platformkit-catalog</text>
-        <text data-detail="context" x="887" y="386" class="t-muted" font-size="9" text-anchor="middle">cart · payment (Stripe)</text>
-        <text data-detail="fine" x="887" y="396" class="t-backend" font-size="7" text-anchor="middle">private</text>
+          <text data-node-label="" data-detail-anchor="" x="893" y="370" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">the private catalog</text>
+        <text data-detail="context" x="893" y="386" class="t-muted" font-size="9" text-anchor="middle">catalog modules · payments</text>
+        <text data-detail="fine" x="893" y="396" class="t-backend" font-size="7" text-anchor="middle">private</text>
         </g>
 
-        <g id="node-clients" data-node-id="clients" data-node-label="septagon-clients" tabindex="0" role="button" aria-label="Focus septagon-clients, apps/flagship · clients/&lt;slug&gt; · collectibles, github.com/septagon-dev (private)" aria-pressed="false" data-node-kind="backend" data-node-sublabel="apps/flagship · clients/&lt;slug&gt; · collectibles" data-node-tag="private" data-node-context="github.com/septagon-dev (private)">
-          <title>septagon-clients · apps/flagship · clients/&lt;slug&gt; · collectibles · github.com/septagon-dev (private) · private</title>
+        <g id="node-clients" data-node-id="clients" data-node-label="the private application" tabindex="0" role="button" aria-label="Focus the private application, flagship · overlays · client modules, private repositories" aria-pressed="false" data-node-kind="backend" data-node-sublabel="flagship · overlays · client modules" data-node-tag="private" data-node-context="private repositories">
+          <title>the private application · flagship · overlays · client modules · private repositories · private</title>
           <rect x="754" y="200" width="266" height="64" rx="6" class="c-mask"/>
           <rect x="754" y="200" width="266" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(760 206) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="887" y="230" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">septagon-clients</text>
-        <text data-detail="context" x="887" y="246" class="t-muted" font-size="9" text-anchor="middle">apps/flagship · clients/&lt;slug&gt; · collectibles</text>
+          <text data-node-label="" data-detail-anchor="" x="887" y="230" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">the private application</text>
+        <text data-detail="context" x="887" y="246" class="t-muted" font-size="9" text-anchor="middle">flagship · overlays · client modules</text>
         <text data-detail="fine" x="887" y="256" class="t-backend" font-size="7" text-anchor="middle">private</text>
         </g>
 
@@ -5149,15 +5149,15 @@
         <text data-detail="context" x="677" y="521" class="t-muted" font-size="9" text-anchor="middle">platformkit image + SBOM · flagship image</text>
         </g>
 
-        <g id="node-clusters" data-node-id="clusters" data-node-label="Kubernetes" tabindex="0" role="button" aria-label="Focus Kubernetes, Helm chart · Flux · staging → production, Architecture component" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="Helm chart · Flux · staging → production" data-node-context="Architecture component">
-          <title>Kubernetes · Helm chart · Flux · staging → production · Architecture component</title>
+        <g id="node-clusters" data-node-id="clusters" data-node-label="the deployment" tabindex="0" role="button" aria-label="Focus the deployment, chart · cluster state · environments, Architecture component" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="chart · cluster state · environments" data-node-context="Architecture component">
+          <title>the deployment · chart · cluster state · environments · Architecture component</title>
           <rect x="1075" y="475" width="242" height="64" rx="6" class="c-mask"/>
           <rect x="1075" y="475" width="242" height="64" rx="6" class="c-cloud" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(1081 481) scale(0.6875)">
             <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="1196" y="505" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Kubernetes</text>
-        <text data-detail="context" x="1196" y="521" class="t-muted" font-size="9" text-anchor="middle">Helm chart · Flux · staging → production</text>
+          <text data-node-label="" data-detail-anchor="" x="1196" y="505" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">the deployment</text>
+        <text data-detail="context" x="1196" y="521" class="t-muted" font-size="9" text-anchor="middle">chart · cluster state · environments</text>
         </g>
 
         <g id="node-postgres" data-node-id="postgres" data-node-label="PostgreSQL 16" tabindex="0" role="button" aria-label="Focus PostgreSQL 16, FORCE ROW LEVEL SECURITY, Architecture component" aria-pressed="false" data-node-kind="database" data-node-sublabel="FORCE ROW LEVEL SECURITY" data-node-context="Architecture component">
@@ -5192,8 +5192,8 @@
           <text x="651.5" y="295.5" class="t-backend" font-size="8" text-anchor="middle">go.mod requires v1.0.0</text>
         </g>
         <g data-detail="context" data-edge-from="clients" data-edge-to="catalog" data-edge-label="requires · replace between tags" data-edge-key="1" data-edge-id="clients-requires-catalog">
-          <rect x="807.6" y="294" width="158.79999999999998" height="14" rx="3" class="c-mask"/>
-          <text x="887" y="304" class="t-muted" font-size="8" text-anchor="middle">requires · replace between tags</text>
+          <rect x="818.6" y="318" width="158.79999999999998" height="14" rx="3" class="c-mask"/>
+          <text x="898" y="328" class="t-muted" font-size="8" text-anchor="middle">requires · replace between tags</text>
         </g>
         <g data-detail="context" data-edge-from="clients" data-edge-to="foundation" data-edge-label="requires" data-edge-key="2" data-edge-id="clients-requires-foundation">
           <rect x="595.8" y="205" width="48.4" height="14" rx="3" class="c-mask"/>
@@ -5219,9 +5219,9 @@
           <rect x="461.7" y="487" width="67.6" height="14" rx="3" class="c-mask"/>
           <text x="495.5" y="497" class="t-muted" font-size="8" text-anchor="middle">image + SBOM</text>
         </g>
-        <g data-detail="context" data-edge-from="clients" data-edge-to="clusters" data-edge-label="Helm chart · Flux" data-edge-key="8" data-edge-id="clients-to-clusters">
-          <rect x="1150.2" y="333.5" width="91.6" height="14" rx="3" class="c-mask"/>
-          <text x="1196" y="343.5" class="t-muted" font-size="8" text-anchor="middle">Helm chart · Flux</text>
+        <g data-detail="context" data-edge-from="clients" data-edge-to="clusters" data-edge-label="chart · cluster state" data-edge-key="8" data-edge-id="clients-to-clusters">
+          <rect x="1140.6" y="333.5" width="110.8" height="14" rx="3" class="c-mask"/>
+          <text x="1196" y="343.5" class="t-muted" font-size="8" text-anchor="middle">chart · cluster state</text>
         </g>
         <g data-detail="context" data-edge-from="registry" data-edge-to="clusters" data-edge-label="pulled by the chart" data-edge-key="9" data-edge-id="registry-to-clusters">
           <rect x="885.9" y="487" width="101.2" height="14" rx="3" class="c-mask"/>
@@ -5242,9 +5242,9 @@
           <text data-boundary-label="" x="222" y="33" class="t-cloud" font-size="9" font-weight="600">github.com/septagon-oss (public)</text>
         </g>
 
-        <g data-graph-role="structural-frame-label" data-composition-frame-id="1" data-composition-frame-kind="region" data-composition-frame-label="github.com/septagon-dev (private)">
-          <rect data-graph-role="structural-frame-label-mask" x="728" y="180" width="188.2" height="16" rx="3" class="c-mask"/>
-          <text data-boundary-label="" x="732" y="193" class="t-cloud" font-size="9" font-weight="600">github.com/septagon-dev (private)</text>
+        <g data-graph-role="structural-frame-label" data-composition-frame-id="1" data-composition-frame-kind="region" data-composition-frame-label="private repositories">
+          <rect data-graph-role="structural-frame-label-mask" x="728" y="180" width="118" height="16" rx="3" class="c-mask"/>
+          <text data-boundary-label="" x="732" y="193" class="t-cloud" font-size="9" font-weight="600">private repositories</text>
         </g>
 
         <!-- Legend -->
@@ -5441,7 +5441,7 @@
           <h3>One direction</h3>
         </div>
         <ul>
-          <li>&bull; clients → catalog → platformkit; migrations numbered 1…, 1001…, 2001…</li>
+          <li>&bull; application → catalog → platformkit; each owner numbers its own history</li>
           <li>&bull; Between tags a private repo may replace the module with its sibling checkout</li>
         </ul>
       </div>
