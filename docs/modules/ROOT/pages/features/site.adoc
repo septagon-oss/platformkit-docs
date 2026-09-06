@@ -34,12 +34,44 @@ include::partial$map-embed.adoc[]
 
 == Routes and screens
 
+// generated:routes:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="1,4,3,3,4"]
+|===
+| Method | Path | Does | Authorization | Publishes
+
+| `GET` | `/api/v1/site/settings` | Read this tenant's settings | `site:manage` | —
+| `PUT` | `/api/v1/site/settings` | Save this tenant's settings | `site:manage` | `site.settings_updated`
+| `GET` | `/api/v1/site/settings/public` | Read this settings as a visitor sees it | public | —
+|===
+// generated:routes:end
+
 * `GET /api/v1/site/settings` and `PUT /api/v1/site/settings` — the two routes `rest.Singleton.Mount` registers ({source-tree}/kit/rest/singleton.go[`kit/rest/singleton.go`], declared in {source-tree}/modules/site/module.go[`module.go`]). There is no list, no `POST` and no `DELETE`, because a tenant has one site whether or not anybody has saved it. The read answers the defaults rather than a 404; the `PUT` replaces the whole row, `crud.Reset` drops whatever a body claims about its id and timestamps, and a value `Validate` refuses is a 422.
 * `GET /api/v1/site/settings/public` — the public face, behind `httpx.Public()`: the title, the navigation and the theme and nothing else, an empty navigation rather than a null, and a 404 at a host that resolves to no tenant.
 * Commands: none.
 * Screens: the singleton has a `Write` permission, so `Mount` registers it as a resource and the admin generates its seven pages under `/admin/site/settings`: the list shows the one row, the detail and the edit form read and save it through `Settings` and `Save`, and creating or deleting through them answers with a conflict, "a tenant has one settings, and it is neither created nor removed". The navigation entry "Site" is shown to anyone with `site:manage`. Hand-written pages: none — there is no HTML in the module, so the theme can be replaced.
 
+== Authorization
+
+// generated:authorization:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="2,2,4"]
+|===
+| Authorization | Who passes | Routes
+
+| `site:manage` | a member of the tenant | `read`, `save`
+| none: public | anyone | `public`
+|===
+// generated:authorization:end
+
 == Events, jobs and subscriptions
+
+// generated:events:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="3,3,3"]
+|===
+| Event | Published by | Handled by
+
+| `site.settings_updated` | `save` | `audit` (every event)
+|===
+// generated:events:end
 
 * Publishes: `site.settings_updated`, from `Save` in {source-tree}/modules/site/internal/service.go[`internal/service.go`], through `events.Publish` inside the caller's transaction; the `Singleton`'s `Event` field declares it on the `PUT` so the boot gate can check it.
 * Jobs: none, written out as a decision in `module.go`: nothing about a site happens because time passed.

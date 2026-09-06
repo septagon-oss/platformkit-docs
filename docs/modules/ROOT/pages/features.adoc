@@ -4,8 +4,11 @@ A feature is a module: `contracts/`, `internal/` and `module.go`, composed in
 `main` with typed dependencies. Every feature page follows one template, kept
 in the documentation repository as `templates/feature.adoc`, with a map drawn
 from one shape, so that a reader who has seen one has seen them all: what it
-promises, its routes and screens, its events and jobs, what it needs, who uses
-it, and how it is verified. The map's source is kept in the programme record.
+promises, its routes and screens, its authorization, its events and jobs, what
+it needs, who uses it, and how it is verified. The routes, authorization and
+events tables are rendered from the application's own OpenAPI document and
+module manifests, so every page states them the same way and none can drift
+from the code. The map's source is kept in the programme record.
 
 [cols="1,3"]
 |===

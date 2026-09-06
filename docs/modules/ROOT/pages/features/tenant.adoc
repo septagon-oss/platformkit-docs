@@ -35,11 +35,48 @@ include::partial$map-embed.adoc[]
 
 == Routes and screens
 
+// generated:routes:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="1,4,3,3,4"]
+|===
+| Method | Path | Does | Authorization | Publishes
+
+| `GET` | `/api/v1/tenant/tenants` | List the tenants | `tenant:manage` (operator) | —
+| `POST` | `/api/v1/tenant/tenants` | Create a tenant | `tenant:manage` (operator) | `tenant.created`
+| `GET` | `/api/v1/tenant/tenants/\{id}` | Read a tenant | `tenant:manage` (operator) | —
+| `POST` | `/api/v1/tenant/tenants/\{id}/hosts` | Give a tenant another host | `tenant:manage` (operator) | `tenant.host_added`
+| `POST` | `/api/v1/tenant/tenants/\{id}/invite` | Give a tenant its first administrator | `tenant:manage` (operator) | `user.invited`
+| `POST` | `/api/v1/tenant/tenants/\{id}/suspend` | Suspend a tenant | `tenant:manage` (operator) | `tenant.suspended`
+|===
+// generated:routes:end
+
 * `GET`/`POST /api/v1/tenant/tenants` and `GET /api/v1/tenant/tenants/\{id}` — written by hand in {source-tree}/modules/tenant/internal/handler.go[`internal/handler.go`] rather than mounted from a `rest.Spec`, because a tenant carries no `tenant_id` for the generic repository to stamp. There is no `PATCH` and no `DELETE`. Each handler opens a system transaction of its own, `db.RunSystem` over `db.Detached`, with the token `api.SystemToken()` hands `RegisterRoutes`; the write commits whether or not the response reaches the caller.
 * `POST /api/v1/tenant/tenants/\{id}/suspend` — stops the tenant being served and drops its hosts from the resolution cache with `api.InvalidateHost`; `POST /api/v1/tenant/tenants/\{id}/hosts` — another host, `primary` false unless asked; `POST /api/v1/tenant/tenants/\{id}/invite` — the first administrator, mounted only when `Deps.Invite` is wired. Every route declares `httpx.OperatorPermission(contracts.PermissionTenantManage)`; the operation IDs are `tenant-tenant-<verb>`.
 * Screens: none generated — no `rest.Spec`, so no `httpx.Resource` and no entry in the catalog the native shell reads. The navigation entry "Tenants" at `/admin/tenant/tenants` is shown to a holder of `tenant:manage` in the operator's tenant; the page there is the admin module's hand-written switcher ({source-tree}/modules/admin/internal/pages.go[`modules/admin/internal/pages.go`]), every tenant with its status and hosts, behind the same operator permission. Hand-written pages in this module: none.
 
+== Authorization
+
+// generated:authorization:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="2,2,4"]
+|===
+| Authorization | Who passes | Routes
+
+| `tenant:manage` | the operator's tenant only | `list`, `create`, `read`, `add-host`, `invite`, `suspend`
+|===
+// generated:authorization:end
+
 == Events, jobs and subscriptions
+
+// generated:events:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="3,3,3"]
+|===
+| Event | Published by | Handled by
+
+| `tenant.created` | `create` | `audit` (every event)
+| `tenant.suspended` | `suspend` | `audit` (every event)
+| `tenant.host_added` | `add-host` | `audit` (every event)
+| `user.invited` | `invite` | `auth`, `audit` (every event)
+|===
+// generated:events:end
 
 * Publishes: the three events above, each declared on the operation that publishes it so the boot gate can check it; the invite route declares `user.invited`.
 * Jobs: none, written out as a decision: the module has no periodic work of its own; it is what the other modules' periodic work walks, through `contracts.Active`.

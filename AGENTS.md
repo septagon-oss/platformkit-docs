@@ -9,8 +9,13 @@
    describe. Version numbers come from `docs/antora.yml` attributes, never from
    prose.
 5. No generated content, no copied files from the source repository except
-   `images/logo.png` and the architecture maps under `attachments/`, which
-   are copied from `ops/platformkit-record/architecture/` in the workspace.
+   `images/logo.png`, the architecture maps under `attachments/`, which are
+   copied from `ops/platformkit-record/architecture/` in the workspace, and
+   the three tables on every feature page between `// generated:…` markers.
+   `make tables` renders those from `scripts/openapi.json`, the document the
+   application serves at `/openapi.json` with `server.docs` on, and from the
+   module manifests; refresh the snapshot and `scripts/openapi.revision`
+   together, and never edit inside the markers.
 6. A feature page is `pages/features/<module>.adoc` from `templates/feature.adoc`
    and a decision page is `pages/decisions/<NNNN>-<slug>.adoc` from
    `templates/decision.adoc`: same headings, same order, the map first. The

@@ -36,6 +36,22 @@ include::partial$map-embed.adoc[]
 
 == Routes and screens
 
+// generated:routes:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="1,4,3,3,4"]
+|===
+| Method | Path | Does | Authorization | Publishes
+
+| `POST` | `/api/v1/auth/login` | Sign in with a password | public | `auth.logged_in`, `auth.login_failed`
+| `POST` | `/api/v1/auth/logout` | Sign out | signed in | `auth.logged_out`
+| `GET` | `/api/v1/auth/me` | Who am I | signed in | —
+| `POST` | `/api/v1/auth/password` | Change my password | signed in | `user.password_set`
+| `POST` | `/api/v1/auth/password/forgot` | Send me a reset link | public | `auth.reset_requested`
+| `POST` | `/api/v1/auth/password/reset` | Set a password with a link | public | `auth.password_reset`, `user.password_set`
+| `GET` | `/api/v1/auth/roles` | List this tenant's roles | `role:manage` | —
+| `PUT` | `/api/v1/auth/roles/\{name}` | Set what a role grants | `role:manage` | `auth.role_set`
+|===
+// generated:routes:end
+
 * `POST /api/v1/auth/login` — `Public`; a wrong password and an address nobody has answer the same 401 and cost the same; ten failures for an address in fifteen minutes is a 429, and an account attacked from more than three addresses gets a two-second delay before the transaction opens instead of a lockout; a sign-in posted from another site is refused. It sets the `platformkit_session` cookie: HttpOnly, SameSite Lax, Secure and `__Host-`-prefixed unless `PublicHost` is a local name ({source-tree}/modules/auth/internal/handler.go[`internal/handler.go`], {source-tree}/modules/auth/internal/kernel.go[`internal/kernel.go`]).
 * `POST /api/v1/auth/logout` — `SignedIn`; deletes the session and clears the cookie; signing out when already signed out is not an error.
 * `GET /api/v1/auth/me` — `SignedIn`; the caller's `Identity`.
@@ -46,7 +62,35 @@ include::partial$map-embed.adoc[]
 * `GET /api/v1/auth/oidc/start` and `GET /api/v1/auth/oidc/callback` (the configured `redirect_path`) — `Public`, registered only when an issuer is configured: PKCE and a `platformkit_oidc` state cookie out, a verified address back, and a session for the user this tenant has at that address; an address it has no account for is refused and nobody is created ({source-tree}/modules/auth/internal/oidc.go[`internal/oidc.go`]).
 * Screens: none. The module registers no `httpx.Resource`, so the admin generates nothing for it; the sign-in page is the admin module's `GET /admin/login`, whose form posts to `POST /api/v1/auth/login` ({source-tree}/modules/admin/internal/pages.go[`modules/admin/internal/pages.go`]). The manifest's navigation entry "Roles" names `/admin/auth/roles` for `role:manage`, and no page in the tree serves that path; the shell reports an unserved entry once at boot and does not show it ({source-tree}/modules/admin/internal/mount.go[`modules/admin/internal/mount.go`]). Hand-written pages: none.
 
+== Authorization
+
+// generated:authorization:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="2,2,4"]
+|===
+| Authorization | Who passes | Routes
+
+| none: public | anyone | `auth-login`, `forgot`, `reset`
+| none: any signed-in member | a session of this tenant | `auth-logout`, `auth-me`, `change`
+| `role:manage` | a member of the tenant | `list`, `set`
+|===
+// generated:authorization:end
+
 == Events, jobs and subscriptions
+
+// generated:events:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="3,3,3"]
+|===
+| Event | Published by | Handled by
+
+| `auth.logged_in` | `login` | `audit` (every event)
+| `auth.logged_out` | `logout` | `audit` (every event)
+| `auth.login_failed` | `login` | `audit` (every event)
+| `auth.reset_requested` | `forgot` | `auth`, `audit` (every event)
+| `auth.password_reset` | `reset` | `audit` (every event)
+| `auth.role_set` | `set` | `audit` (every event)
+| `user.password_set` | `change`, `reset` | `audit` (every event)
+|===
+// generated:events:end
 
 * Publishes: the six events above; `auth.login_failed` is the one event in the application written outside the transaction of the thing it describes, because a 401 is a response the kernel rolls back.
 * Jobs: `auth-sweep` (`internal.Sweep`), cron `0 * * * *`: purges the rate-limit windows once (`limit.Purge`), then through `jobs.PerTenant` deletes each tenant's expired sessions and spent tokens a thousand rows per transaction (`Purge`) and logs every role that names a permission no module defines (`Undeclared`) ({source-tree}/modules/auth/internal/sweep.go[`internal/sweep.go`]).

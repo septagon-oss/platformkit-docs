@@ -36,6 +36,15 @@ include::partial$map-embed.adoc[]
 
 == Routes and screens
 
+// generated:routes:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="1,4,3,3,4"]
+|===
+| Method | Path | Does | Authorization | Publishes
+
+| `GET` | `/api/v1/admin/resources` | The resources this caller may reach, with their schemas | signed in | —
+|===
+// generated:routes:end
+
 * `GET /admin/login` — the sign-in form, public. It posts to the auth module's `/api/v1/auth/login` and sends the person on to a `next` that `httpx.LocalPath` accepts, otherwise to `/admin`.
 * `GET /admin` — the dashboard: one card per resource the caller may read, with the count its own list reports, and whether the database check passes.
 * `GET /admin/health` — the checks behind `/ready`, one at a time.
@@ -43,6 +52,17 @@ include::partial$map-embed.adoc[]
 * `GET /admin/tenant/tenants` — the tenant switcher: every tenant of the installation and the hosts it is served at, listed through `tenantcontracts.Service.List` in a system transaction on a detached context; the path the tenant module's nav entry names.
 * `GET /api/v1/admin/resources` — the catalog: `screens.Describe` for this caller, in {source-tree}/modules/admin/internal/catalog.go[`internal/catalog.go`].
 * Screens: `screens.Mount` for every resource in `api.Resources()`, seven pages each under `/admin/<module>/<entity>`, with "Dashboard" as the breadcrumb's home. The sidebar is every module's `Nav` in composition order, shown only where the same authorizer the routes ask says yes; an entry no route serves is a warning at boot, not a disabled link. Hand-written pages: the five above, in {source-tree}/modules/admin/internal/pages.go[`internal/pages.go`], because no schema describes the way in, the way around, or a page about the installation.
+
+== Authorization
+
+// generated:authorization:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="2,2,4"]
+|===
+| Authorization | Who passes | Routes
+
+| none: any signed-in member | a session of this tenant | `admin-resources`
+|===
+// generated:authorization:end
 
 == Events, jobs and subscriptions
 

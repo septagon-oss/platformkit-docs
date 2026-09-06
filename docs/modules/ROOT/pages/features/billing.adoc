@@ -33,12 +33,56 @@ include::partial$map-embed.adoc[]
 
 == Routes and screens
 
+// generated:routes:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="1,4,3,3,4"]
+|===
+| Method | Path | Does | Authorization | Publishes
+
+| `GET` | `/api/v1/billing/plans` | List plans | `billing:read` | —
+| `POST` | `/api/v1/billing/plans` | Create a plan | `billing:catalog` (operator) | `billing.plan.created`
+| `GET` | `/api/v1/billing/plans/\{id}` | Read a plan | `billing:read` | —
+| `PATCH` | `/api/v1/billing/plans/\{id}` | Update a plan | `billing:catalog` (operator) | `billing.plan.updated`
+| `DELETE` | `/api/v1/billing/plans/\{id}` | Delete a plan | `billing:catalog` (operator) | `billing.plan.deleted`
+| `GET` | `/api/v1/billing/subscription` | Read this tenant's subscription | `billing:read` | —
+| `POST` | `/api/v1/billing/subscription/cancel` | Cancel this tenant's subscription | `billing:manage` | `billing.cancelled`
+| `POST` | `/api/v1/billing/subscription/subscribe` | Subscribe this tenant to a plan | `billing:manage` | `billing.subscribed`
+|===
+// generated:routes:end
+
 * `GET`/`POST /api/v1/billing/plans` and `GET`/`PATCH`/`DELETE /api/v1/billing/plans/\{id}` — the five routes `rest.Spec.Mount` registers, with soft delete; the three writes carry `httpx.OperatorPermission`, and the delete hook `RefuseWhileSubscribed` counts live subscriptions across every tenant under system access and refuses, with `409`, a plan somebody is still on.
 * `GET /api/v1/billing/subscription` — the tenant's one subscription, from `rest.Singleton`, `404` until it has subscribed; there is no `PUT`, because a customer must not write its own period or its own price.
 * `POST /api/v1/billing/subscription/subscribe` and `…/cancel` — the two commands in {source-tree}/modules/billing/internal/handler.go[`internal/handler.go`], under `billing:manage`: the same plan again changes nothing, a different plan takes effect at the next renewal and is refused while the subscription owes for a period, and the trial is issued once per tenant; cancelling ends the subscription at the end of the period or now, and now is refused while a period is owed for.
 * Screens: the generated list, detail and forms under `/admin/billing/plans`, writable only at the operator's host, and the navigation entry "Billing" for anyone with `billing:read`. The subscription registers no resource: a read-only singleton would be a screen whose forms nobody may submit. Hand-written pages: none.
 
+== Authorization
+
+// generated:authorization:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="2,2,4"]
+|===
+| Authorization | Who passes | Routes
+
+| `billing:read` | a member of the tenant | `list`, `read`, `read`
+| `billing:catalog` | the operator's tenant only | `create`, `update`, `delete`
+| `billing:manage` | a member of the tenant | `cancel`, `subscribe`
+|===
+// generated:authorization:end
+
 == Events, jobs and subscriptions
+
+// generated:events:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="3,3,3"]
+|===
+| Event | Published by | Handled by
+
+| `billing.plan.created` | `create` | `audit` (every event)
+| `billing.plan.updated` | `update` | `audit` (every event)
+| `billing.plan.deleted` | `delete` | `audit` (every event)
+| `billing.subscribed` | `subscribe` | `audit` (every event)
+| `billing.cancelled` | `cancel` | `audit` (every event)
+| `billing.renewed` | a job, hook or command in the module | `audit` (every event)
+| `billing.past_due` | a job, hook or command in the module | `audit` (every event)
+|===
+// generated:events:end
 
 * Publishes the seven events above; the two commands declare `billing.subscribed` and `billing.cancelled` so the boot gate can check them.
 * Jobs: `Renew`, named `billing-renew`, at a quarter past two every morning unless `Deps.RenewEvery` says otherwise, through `jobs.PerTenant` ({source-tree}/modules/billing/internal/renew.go[`internal/renew.go`]): one transaction asks the service what is owed, the charge goes to the provider with no transaction open, and a second transaction records the receipt through `Settle`. A free plan renews itself, a cancelled subscription ends when its period does, and one past due for longer than `GraceDays` (seven) is cancelled.

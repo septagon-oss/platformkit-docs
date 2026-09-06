@@ -34,12 +34,25 @@ include::partial$map-embed.adoc[]
 
 == Routes and screens
 
-* `<METHOD> <path>` — <the five generated routes, then each command with the rule it applies>.
+// generated:routes:begin — rendered by `make tables` from scripts/openapi.json; leave this block to the script
+// generated:routes:end
+
+* <Which routes `rest.Spec.Mount` registers, and why each command exists: the rule it applies that a `PATCH` may not.>
 * Screens: <the generated pages under `/admin/<module>/<entities>` and the navigation entry, or "none" and why>; hand-written pages: <none, or each with its reason>.
+
+== Authorization
+
+// generated:authorization:begin — rendered by `make tables`; leave this block to the script
+// generated:authorization:end
+
+<One sentence only if a permission needs explaining beyond the table, such as an operator permission's meaning; otherwise nothing.>
 
 == Events, jobs and subscriptions
 
-* Publishes: <events, from which operation>.
+// generated:events:begin — rendered by `make tables`; leave this block to the script
+// generated:events:end
+
+* <Events a job or hook publishes that no route does, and what the table cannot say.>
 * Jobs: <name, schedule, what it does per tenant>, or "none, written out as a decision".
 * Subscriptions: <event → handler>, or "none".
 

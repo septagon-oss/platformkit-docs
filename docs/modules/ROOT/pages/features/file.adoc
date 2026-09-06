@@ -37,13 +37,52 @@ include::partial$map-embed.adoc[]
 
 == Routes and screens
 
+// generated:routes:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="1,4,3,3,4"]
+|===
+| Method | Path | Does | Authorization | Publishes
+
+| `GET` | `/api/v1/file/files` | List files | `file:read` | —
+| `POST` | `/api/v1/file/files` | Upload a file | `file:manage` | `file.uploaded`
+| `GET` | `/api/v1/file/files/\{id}` | Read a file's record | `file:read` | —
+| `DELETE` | `/api/v1/file/files/\{id}` | Delete a file | `file:manage` | `file.deleted`
+| `GET` | `/api/v1/file/files/\{id}/content` | Download a file | `file:read` | —
+| `HEAD` | `/api/v1/file/files/\{id}/content` | Download a file | `file:read` | —
+| `GET` | `/api/v1/file/public/\{id}` | Download a public file | public | —
+| `HEAD` | `/api/v1/file/public/\{id}` | Download a public file | public | —
+|===
+// generated:routes:end
+
 * `GET`/`POST /api/v1/file/files`, `GET`/`DELETE /api/v1/file/files/\{id}` and `GET`/`HEAD /api/v1/file/files/\{id}/content` — written by hand with `httpx.Register` in {source-tree}/modules/file/internal/handler.go[`internal/handler.go`], behind `file:read` for the list, the record and the content and `file:manage` for the upload and the delete. There is no `rest.Spec`, because a Spec's create route takes a JSON body and a file arrives as a stream; there is no `PATCH`, because a file's bytes are what they are; the delete is hard, not soft, and publishes an event the generic one could not carry.
 * The upload is a multipart form with one file part, `visibility` a query parameter rather than a form field because a field can arrive after the file. The route is marked `httpx.StreamedBody()`, so the kernel bounds it at `files.max_bytes` plus an envelope and commits the guard transaction before the handler; the bytes are streamed to storage while they are hashed and counted, with nothing open, and the transaction is opened only once they are all in (`contracts.Tx`). It answers 413 past the limit or the quota, and 422 for a form with no file, a media type that is overlong or not one, or a renderable type whose bytes disagree with it (`contracts.Agrees`, against `http.DetectContentType`).
 * The download sends the declared `Content-Type` with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox`, `Cross-Origin-Resource-Policy: same-site`, and `Content-Disposition: attachment` unless `contracts.Renderable` says the stored type may be shown inline — `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/avif`, `application/pdf`, `text/plain`, and nothing else. A private file adds `Cache-Control: no-store`; a public one says nothing and may be cached. Ranges, `HEAD` and conditional gets are `http.ServeContent`'s when the storage returns a seeker, which the local disk does.
 * `GET`/`HEAD /api/v1/file/public/\{id}` — `httpx.Public()`; the tenant still comes from the host and the query still runs under its policy. It serves only a file whose visibility is public; a private file, an unknown id and a host that resolves no tenant are the same 404, so an anonymous caller learns nothing about what a tenant has.
 * Screens: none. There is no `rest.Spec` and no `httpx.Resource` registered, so the shell generates nothing and the resource catalogue does not list files. The manifest's navigation entry "Files" points at `/admin/file/files` for anyone with `file:read`, a path no route serves: the shell reports it once at boot and never renders it ({source-tree}/modules/admin/internal/mount.go[`modules/admin/internal/mount.go`], {source-tree}/ui/page/navigation.go[`ui/page/navigation.go`]). Hand-written pages: none.
 
+== Authorization
+
+// generated:authorization:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="2,2,4"]
+|===
+| Authorization | Who passes | Routes
+
+| `file:read` | a member of the tenant | `list`, `read`, `content`, `content-head`
+| `file:manage` | a member of the tenant | `upload`, `delete`
+| none: public | anyone | `public`, `public-head`
+|===
+// generated:authorization:end
+
 == Events, jobs and subscriptions
+
+// generated:events:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="3,3,3"]
+|===
+| Event | Published by | Handled by
+
+| `file.uploaded` | `upload` | `audit` (every event)
+| `file.deleted` | `delete` | `file`, `audit` (every event)
+|===
+// generated:events:end
 
 * Publishes: `file.uploaded` from `Upload`, in the caller's transaction, after the bytes are stored and the row written; `file.deleted` from `Delete`, in the transaction that removed the row ({source-tree}/modules/file/internal/service.go[`internal/service.go`]). The upload and delete routes declare them in `httpx.EventsExtension` so the boot gate can check them.
 * Jobs: `file-reconcile` (`internal.Reconcile` in {source-tree}/modules/file/internal/reconcile.go[`internal/reconcile.go`]), daily on `45 3 * * *`, or every `Deps.ReconcileEvery` for a test. It is the cost of writing the bytes before the row: a transaction that failed afterwards left bytes nobody references, and nothing in the database records them. So it is not `jobs.PerTenant` — a blob carries no tenant — and it starts at the store: `Lister.Keys` lists every blob older than an hour, the database is asked under system access which of them a row names, five hundred a query, and the rest are removed. The token that opens the cross-tenant transaction is handed over in `Routes` through `sweep.Use(api.SystemToken())`; without it the job removes nothing and says why. A storage that does not implement `contracts.Lister` mounts no job at all.

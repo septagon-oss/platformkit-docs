@@ -37,6 +37,23 @@ include::partial$map-embed.adoc[]
 
 == Routes and screens
 
+// generated:routes:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="1,4,3,3,4"]
+|===
+| Method | Path | Does | Authorization | Publishes
+
+| `GET` | `/api/v1/content/contents` | List contents | `content:read` | —
+| `POST` | `/api/v1/content/contents` | Create a content | `content:manage` | `content.content.created`
+| `GET` | `/api/v1/content/contents/\{id}` | Read a content | `content:read` | —
+| `PATCH` | `/api/v1/content/contents/\{id}` | Update a content | `content:manage` | `content.content.updated`
+| `DELETE` | `/api/v1/content/contents/\{id}` | Delete a content | `content:manage` | `content.content.deleted`
+| `POST` | `/api/v1/content/contents/\{id}/archive` | Archive content | `content:manage` | `content.archived`
+| `POST` | `/api/v1/content/contents/\{id}/publish` | Publish content | `content:manage` | `content.published`
+| `POST` | `/api/v1/content/contents/\{id}/unpublish` | Unpublish content | `content:manage` | `content.unpublished`
+| `GET` | `/api/v1/content/public/\{slug}` | Read published content by slug | public | —
+|===
+// generated:routes:end
+
 * `GET`/`POST /api/v1/content/contents` and `GET`/`PATCH`/`DELETE /api/v1/content/contents/\{id}` — the five routes `rest.Spec.Mount` registers, with soft delete; a create or a patch that names `status`, `publishedAt` or `author` is refused with the route that owns the field.
 * `POST /api/v1/content/contents/\{id}/publish` — serves it to anybody and records when; what is already published changes nothing and the publication time does not move, because a page has one; archived content is refused with a conflict, because it is taken out of the archive first. The three commands are in {source-tree}/modules/content/internal/handler.go[`internal/handler.go`].
 * `POST /api/v1/content/contents/\{id}/unpublish` — takes it back to a draft, from published or from archived, and clears the publication time with it; a draft again changes nothing.
@@ -44,7 +61,34 @@ include::partial$map-embed.adoc[]
 * `GET /api/v1/content/public/\{slug}` — the one read a reader with no session makes, `httpx.Public()`, and a sibling of the collection rather than a route under it so that everything under `/api/v1/content/contents` needs `content:read`. It answers with `Page` — the slug, the title, the kind, the body rendered from Markdown and sanitised, and `publishedAt` — and not the entity: the author, the timestamps and the status are not a reader's business. A draft, an archived page and a slug nobody has used are the same `404`; a slug outside `Slugify`'s grammar is a `422` at the door; a host that resolves to no tenant is a `404`. The response carries a weak `ETag` from the row's `updated_at`, and an `If-None-Match` that names it is answered `304` with no body, so a reader who already has the page does not pay for rendering it again. The renderer is {source-tree}/modules/content/internal/render.go[`internal/render.go`]: goldmark with GFM and raw HTML left out, a protocol-relative link rewritten to say which origin it goes to, and bluemonday's user-generated-content policy over the result.
 * Screens: the generated list, detail and forms under `/admin/content/contents`, with the body as a textarea and hidden from the list, and the navigation entry "Content" for anyone with `content:read` ({source-tree}/modules/content/module.go[`module.go`]). Hand-written pages: none.
 
+== Authorization
+
+// generated:authorization:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="2,2,4"]
+|===
+| Authorization | Who passes | Routes
+
+| `content:read` | a member of the tenant | `list`, `read`
+| `content:manage` | a member of the tenant | `create`, `update`, `delete`, `archive`, `publish`, `unpublish`
+| none: public | anyone | `public`
+|===
+// generated:authorization:end
+
 == Events, jobs and subscriptions
+
+// generated:events:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="3,3,3"]
+|===
+| Event | Published by | Handled by
+
+| `content.content.created` | `create` | `audit` (every event)
+| `content.content.updated` | `update` | `audit` (every event)
+| `content.content.deleted` | `delete` | `audit` (every event)
+| `content.published` | `publish` | `audit` (every event)
+| `content.unpublished` | `unpublish` | `audit` (every event)
+| `content.archived` | `archive` | `audit` (every event)
+|===
+// generated:events:end
 
 * Publishes the six events above; `HookEvents` is nil, because nothing publishes from a hook — the three commands declare the lifecycle events they publish, so the boot gate can check them against the manifest.
 * Jobs: none — `Jobs: nil` in `module.go`: nothing about a page happens because time passed.

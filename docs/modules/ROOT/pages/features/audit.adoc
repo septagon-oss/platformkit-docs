@@ -34,8 +34,29 @@ include::partial$map-embed.adoc[]
 
 == Routes and screens
 
+// generated:routes:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="1,4,3,3,4"]
+|===
+| Method | Path | Does | Authorization | Publishes
+
+| `GET` | `/api/v1/audit/events` | List the audit trail | `audit:read` | —
+| `GET` | `/api/v1/audit/events/\{id}` | Read one audit event | `audit:read` | —
+|===
+// generated:routes:end
+
 * `GET /api/v1/audit/events` — the trail, newest first, filterable by `name`, `actor`, `since` (inclusive) and `until` (exclusive), 50 rows a page and 200 at most; `GET /api/v1/audit/events/\{id}` — one row. Both are written by hand with `httpx.Register` in {source-tree}/modules/audit/internal/handler.go[`internal/handler.go`], behind `httpx.Permission("audit:read")`, as `audit-event-list` and `audit-event-read`. There is no `rest.Spec` and no command: a Spec is five routes and three of them write.
 * Screens: none. The routes register no `httpx.Resource`, so the shell generates nothing and the resource catalog does not list the trail. The manifest's navigation entry "Audit" points at `/admin/audit/events`, a path no route serves: the shell reports it once at boot and never renders it ({source-tree}/modules/admin/internal/mount.go[`modules/admin/internal/mount.go`], {source-tree}/ui/page/navigation.go[`ui/page/navigation.go`]). Hand-written pages: none.
+
+== Authorization
+
+// generated:authorization:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="2,2,4"]
+|===
+| Authorization | Who passes | Routes
+
+| `audit:read` | a member of the tenant | `list`, `read`
+|===
+// generated:authorization:end
 
 == Events, jobs and subscriptions
 

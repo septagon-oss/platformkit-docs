@@ -32,13 +32,54 @@ include::partial$map-embed.adoc[]
 
 == Routes and screens
 
-* `GET`/`POST /api/v1/task/tasks` and `GET`/`PATCH`/`DELETE /api/v1/task/tasks/\{id}` — the five routes `rest.Spec.Mount` registers, with soft delete.
-* `POST /api/v1/task/tasks/\{id}/assign`, `…/resolve`, `…/check-sla` — the commands, because `assigneeId`, `slaBreached`, `resolvedAt` and `resolution` are `Immutable` to a `PATCH`: setting an assignee has to move the status and publish `task.assigned`, and nothing may forge a breach.
+// generated:routes:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="1,4,3,3,4"]
+|===
+| Method | Path | Does | Authorization | Publishes
+
+| `GET` | `/api/v1/task/tasks` | List tasks | `task:read` | —
+| `POST` | `/api/v1/task/tasks` | Create a task | `task:update` | `task.task.created`, `task.sla_breached`
+| `GET` | `/api/v1/task/tasks/\{id}` | Read a task | `task:read` | —
+| `PATCH` | `/api/v1/task/tasks/\{id}` | Update a task | `task:update` | `task.task.updated`, `task.sla_breached`
+| `DELETE` | `/api/v1/task/tasks/\{id}` | Delete a task | `task:update` | `task.task.deleted`, `task.sla_breached`
+| `POST` | `/api/v1/task/tasks/\{id}/assign` | Assign a task | `task:update` | `task.assigned`
+| `POST` | `/api/v1/task/tasks/\{id}/check-sla` | Check a task's SLA | `task:update` | `task.sla_breached`
+| `POST` | `/api/v1/task/tasks/\{id}/resolve` | Resolve a task | `task:update` | `task.resolved`
+|===
+// generated:routes:end
+
+* The first five are what `rest.Spec.Mount` registers, with soft delete. The three commands exist because `assigneeId`, `slaBreached`, `resolvedAt` and `resolution` are `Immutable` to a `PATCH`: setting an assignee has to move the status and publish `task.assigned`, and nothing may forge a breach.
 * Screens: the generated list, detail and forms under `/admin/task/tasks`, and the navigation entry "Tasks" for anyone with `task:read`. Hand-written pages: none.
+
+== Authorization
+
+// generated:authorization:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="2,2,4"]
+|===
+| Authorization | Who passes | Routes
+
+| `task:read` | a member of the tenant | `list`, `read`
+| `task:update` | a member of the tenant | `create`, `update`, `delete`, `assign`, `check-sla`, `resolve`
+|===
+// generated:authorization:end
 
 == Events, jobs and subscriptions
 
-* Publishes the six events above; `HookEvents` declares `task.sla_breached` on the create operation so the boot gate can check it.
+// generated:events:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="3,3,3"]
+|===
+| Event | Published by | Handled by
+
+| `task.task.created` | `create` | `audit` (every event)
+| `task.task.updated` | `update` | `audit` (every event)
+| `task.task.deleted` | `delete` | `audit` (every event)
+| `task.assigned` | `assign` | `audit` (every event)
+| `task.resolved` | `resolve` | `audit` (every event)
+| `task.sla_breached` | `create`, `update`, `delete`, `check-sla` | `audit` (every event)
+|===
+// generated:events:end
+
+* `task.sla_breached` also comes from the sweep; `HookEvents` declares it on the create operation so the boot gate can check it.
 * Jobs: `SLASweep`, every minute unless `Deps.SweepEvery` says otherwise, through `jobs.PerTenant`, marking every task whose deadline has passed.
 * Subscriptions: none, written out as a decision: a task is raised by whoever raises it.
 

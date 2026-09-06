@@ -34,6 +34,23 @@ include::partial$map-embed.adoc[]
 
 == Routes and screens
 
+// generated:routes:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="1,4,3,3,4"]
+|===
+| Method | Path | Does | Authorization | Publishes
+
+| `POST` | `/api/v1/user/invitations` | Invite somebody into this tenant | `user:manage` | `user.invited`, `user.roles_set`
+| `GET` | `/api/v1/user/users` | List users | `user:read` | —
+| `POST` | `/api/v1/user/users` | Create a user | `user:manage` | `user.user.created`
+| `GET` | `/api/v1/user/users/\{id}` | Read a user | `user:read` | —
+| `PATCH` | `/api/v1/user/users/\{id}` | Update a user | `user:manage` | `user.user.updated`
+| `DELETE` | `/api/v1/user/users/\{id}` | Delete a user | `user:manage` | `user.user.deleted`
+| `POST` | `/api/v1/user/users/\{id}/deactivate` | Deactivate a user | `user:manage` | `user.deactivated`
+| `POST` | `/api/v1/user/users/\{id}/roles` | Set a user's roles | `user:manage` | `user.roles_set`
+| `POST` | `/api/v1/user/users/\{id}/set-password` | Set a user's password | `user:manage` | `user.password_set`
+|===
+// generated:routes:end
+
 * `GET`/`POST /api/v1/user/users` and `GET`/`PATCH`/`DELETE /api/v1/user/users/\{id}` — the five routes `rest.Spec.Mount` registers, with soft delete; a create or a patch that names `status` or `roles` is refused with the route that owns the field.
 * `POST /api/v1/user/invitations` — creates somebody who cannot sign in yet and publishes `user.invited`; roles named in the invitation are granted in the same transaction, so one request is one event about who was made what; an address already here is a conflict. It is a collection of its own because there is no user yet to command. It and the commands are in {source-tree}/modules/user/internal/handler.go[`internal/handler.go`].
 * `POST /api/v1/user/users/\{id}/set-password` — stores the hash and makes an invited user active; the same password again is still a change and still an event; a deactivated user is refused with a conflict.
@@ -41,7 +58,34 @@ include::partial$map-embed.adoc[]
 * `POST /api/v1/user/users/\{id}/deactivate` — stops the person signing in; a second time changes nothing. Their sessions are the auth module's business.
 * Screens: the generated list, detail and forms under `/admin/user/users`, and the navigation entry "Users" for anyone with `user:read`; {source-tree}/modules/user/module.go[`module.go`] says why the generated create form does not offer `roles`. Hand-written pages: none; an invitation screen would have to be one.
 
+== Authorization
+
+// generated:authorization:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="2,2,4"]
+|===
+| Authorization | Who passes | Routes
+
+| `user:manage` | a member of the tenant | `create`, `create`, `update`, `delete`, `deactivate`, `roles`, `set-password`
+| `user:read` | a member of the tenant | `list`, `read`
+|===
+// generated:authorization:end
+
 == Events, jobs and subscriptions
+
+// generated:events:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="3,3,3"]
+|===
+| Event | Published by | Handled by
+
+| `user.user.created` | `create` | `audit` (every event)
+| `user.user.updated` | `update` | `audit` (every event)
+| `user.user.deleted` | `delete` | `audit` (every event)
+| `user.invited` | `create` | `auth`, `audit` (every event)
+| `user.password_set` | `set-password` | `audit` (every event)
+| `user.roles_set` | `create`, `roles` | `audit` (every event)
+| `user.deactivated` | `deactivate` | `audit` (every event)
+|===
+// generated:events:end
 
 * Publishes the seven events above; all seven are listed in the manifest, so the boot gate can check every route's declaration against it.
 * Jobs: none — `Jobs: nil` in `module.go`.

@@ -33,12 +33,44 @@ include::partial$map-embed.adoc[]
 
 == Routes and screens
 
+// generated:routes:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="1,4,3,3,4"]
+|===
+| Method | Path | Does | Authorization | Publishes
+
+| `GET` | `/api/v1/notification/notifications` | List my notifications | signed in | —
+| `POST` | `/api/v1/notification/notifications/\{id}/read` | Mark one of my notifications read | signed in | `notification.read`
+|===
+// generated:routes:end
+
 * `GET /api/v1/notification/notifications` — the caller's own notifications, newest first; there is no route that lists anybody else's.
 * `POST /api/v1/notification/notifications/\{id}/read` — marks one of the caller's own read and publishes `notification.read`; somebody else's is not found rather than refused, and marking it read again changes nothing and publishes nothing.
 * No `rest.Spec`: a Spec's list route is the whole tenant and these rows are addressed to a person, so the two routes are written by hand in {source-tree}/modules/notification/internal/handler.go[`internal/handler.go`] and scoped by the principal rather than by a permission.
 * Screens: none — with no `rest.Spec` there is no resource in the register and nothing generated, and no navigation entry, because a nav entry names the permission that decides who sees the link and there is none ({source-tree}/modules/notification/module.go[`module.go`]). Hand-written pages: none.
 
+== Authorization
+
+// generated:authorization:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="2,2,4"]
+|===
+| Authorization | Who passes | Routes
+
+| none: any signed-in member | a session of this tenant | `list`, `read`
+|===
+// generated:authorization:end
+
 == Events, jobs and subscriptions
+
+// generated:events:begin — from scripts/openapi.json at 10c89a2 and the module manifests; run make tables, do not edit
+[cols="3,3,3"]
+|===
+| Event | Published by | Handled by
+
+| `notification.created` | a job, hook or command in the module | `audit` (every event)
+| `notification.email_requested` | a job, hook or command in the module | `notification`, `audit` (every event)
+| `notification.read` | `read` | `audit` (every event)
+|===
+// generated:events:end
 
 * Publishes: the three events above; the read route declares `notification.read` so the boot gate can check it.
 * Jobs: none, written out as a decision: a notification is caused by something happening, which is an event and not the clock ({source-tree}/docs/adr/0004-events-are-the-job-queue.md[ADR 0004]).
