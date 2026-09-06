@@ -11,3 +11,9 @@
 5. No generated content, no copied files from the source repository except
    `images/logo.png` and the architecture maps under `attachments/`, which
    are copied from `ops/platformkit-record/architecture/` in the workspace.
+6. A feature page is `pages/features/<module>.adoc` from `templates/feature.adoc`
+   and a decision page is `pages/decisions/<NNNN>-<slug>.adoc` from
+   `templates/decision.adoc`: same headings, same order, the map first. The
+   map is delivered from the matching template in the programme record and
+   copied to `attachments/features/` or `attachments/decisions/`; add the page
+   to `nav.adoc` and to the index page.

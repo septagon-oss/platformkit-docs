@@ -15,17 +15,7 @@ map was authored from the code on 2026-09-06 and checked for containment at
 four desktop sizes from 1440×900 to 2048×1320. Inside a map, drag to pan,
 scroll to zoom, and use the guided views where a map offers them.
 
-++++
-<style>
-/* This page is the maps: give them the width the right-hand contents column and the reading measure would otherwise take. */
-.doc { max-width: none; }
-aside.toc.sidebar { display: none; }
-.map-embed { margin: 0.75rem 0 2.25rem; }
-.map-embed iframe { display: block; width: 100%; height: 900px; border: 1px solid #d9d9d9; border-radius: 10px; background: #fff; }
-.map-embed figcaption { font-size: 0.85em; margin-top: 0.45rem; color: #5d5d5d; }
-@media (max-width: 1024px) { .map-embed iframe { height: 640px; } }
-</style>
-++++
+include::partial$map-embed.adoc[]
 
 === Level 0 — the repositories
 

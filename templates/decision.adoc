@@ -1,0 +1,48 @@
+// Decision page template. Copy to docs/modules/ROOT/pages/decisions/<NNNN>-<slug>.adoc,
+// keep every heading in this order, and summarise the record without adding to
+// it: the ADR in the repository is the truth. The map is authored from
+// ops/platformkit-record/architecture/templates/decision.architecture.json and
+// delivered as attachments/decisions/<NNNN>-<slug>.html. See AGENTS.md.
+= <NNNN> — <Title as the ADR states it>
+
+Status: <accepted>, <date>. The record is
+{source-tree}/docs/adr/<NNNN>-<slug>.md[`docs/adr/<NNNN>-<slug>.md`]; this page
+is its map and its summary and states nothing the record does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/decisions/<NNNN>-<slug>.html" title="ADR <NNNN> — <Title>" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/decisions/<NNNN>-<slug>.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>decisions/<NNNN>-<slug></code> in the record</figcaption>
+</figure>
+++++
+
+== Context
+
+<Two to four sentences: what was true before, and what went wrong with it.>
+
+== Decision
+
+<One to three sentences, in the ADR's own terms.>
+
+== Consequences
+
+* <what it makes true>
+* <what it costs>
+
+== Where it lives
+
+* {source-tree}/<path>[`<path>`] — <what that file contributes to the mechanism>.
+
+== Evidence
+
+[source,sh]
+----
+<the commands the ADR names>
+----
+
+<What is deliberately not claimed, if the ADR says so.>

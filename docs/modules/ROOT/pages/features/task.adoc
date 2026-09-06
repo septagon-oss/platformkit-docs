@@ -1,0 +1,65 @@
+= Tasks
+
+A task is a piece of work with a deadline, an owner and a status, raised by
+whoever raises it and resolved by whoever is assigned. The module promises that
+a breached deadline is a recorded fact and not an opinion: a task created past
+its deadline is breached on arrival, and a sweep marks every other breach within
+a minute. It is the exemplar every later module copied. The module is
+{source-tree}/modules/task[`modules/task`]; this page states nothing that tree
+does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/features/task.html" title="Tasks — the module and its seams" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/features/task.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>features/task</code> in the record</figcaption>
+</figure>
+++++
+
+== What it promises
+
+[cols="1,3"]
+|===
+| Entity | `Task` in {source-tree}/modules/task/contracts/task.go[`contracts/task.go`]: a title, a status (`open`, `acknowledged`, `in_progress`, `resolved`, `closed`), a priority (`low` to `critical`), a deadline, an assignee, and the SLA fields a command owns.
+| Events | `task.task.created`, `task.task.updated`, `task.task.deleted` from the generated routes; `task.assigned`, `task.resolved` from the commands; `task.sla_breached` from the create hook and the sweep.
+| Permissions | `task:read` — the list, the reads and the navigation entry; `task:update` — the writes and the three commands.
+| Service | `contracts.Service`: `Assign`, `Resolve`, `CheckSLA`; the fake and the conformance suite live in {source-tree}/modules/task/contracts/tasktest[`contracts/tasktest/`].
+|===
+
+== Routes and screens
+
+* `GET`/`POST /api/v1/task/tasks` and `GET`/`PATCH`/`DELETE /api/v1/task/tasks/\{id}` — the five routes `rest.Spec.Mount` registers, with soft delete.
+* `POST /api/v1/task/tasks/\{id}/assign`, `…/resolve`, `…/check-sla` — the commands, because `assigneeId`, `slaBreached`, `resolvedAt` and `resolution` are `Immutable` to a `PATCH`: setting an assignee has to move the status and publish `task.assigned`, and nothing may forge a breach.
+* Screens: the generated list, detail and forms under `/admin/task/tasks`, and the navigation entry "Tasks" for anyone with `task:read`. Hand-written pages: none.
+
+== Events, jobs and subscriptions
+
+* Publishes the six events above; `HookEvents` declares `task.sla_breached` on the create operation so the boot gate can check it.
+* Jobs: `SLASweep`, every minute unless `Deps.SweepEvery` says otherwise, through `jobs.PerTenant`, marking every task whose deadline has passed.
+* Subscriptions: none, written out as a decision: a task is raised by whoever raises it.
+
+== What it needs
+
+[cols="1,1,2"]
+|===
+| `Deps` field | Interface | Supplied by
+| `Tenants` | `jobs.TenantLister` | the tenant module's `Active` lister, passed in `apps/platformkit/modules.go`
+| `SweepEvery` | `time.Duration` | zero, meaning a minute; a test sets it lower
+|===
+
+Configuration: none.
+
+== Who uses it
+
+* No module takes its contracts; the tests and the reference application do.
+* The admin and the native shell reach it through `httpx.Resource`, not through `contracts/`.
+
+== Verification
+
+* `go test ./modules/task/...` — the fake and the real service pass one conformance suite; the internal tests cover the service and the handlers, including a breach on arrival.
+* `make e2e` signs in, creates a task through the generated form and finds it in the list ({source-tree}/e2e/admin-tasks.spec.ts[`e2e/admin-tasks.spec.ts`]).
+* Not proven: the sweep against a live NATS fleet; the journey uses the combined role.

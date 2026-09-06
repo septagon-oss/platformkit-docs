@@ -1,0 +1,68 @@
+= 0003 — Tenancy is enforced by Postgres
+
+Status: accepted, 2026-09-02. The record is
+{source-tree}/docs/adr/0003-tenancy-by-postgres.md[`docs/adr/0003-tenancy-by-postgres.md`];
+this page is its map and its summary and states nothing the record does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/decisions/0003-tenancy-by-postgres.html" title="ADR 0003 — Tenancy is enforced by Postgres" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/decisions/0003-tenancy-by-postgres.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>decisions/0003-tenancy-by-postgres</code> in the record</figcaption>
+</figure>
+++++
+
+== Context
+
+The previous codebase had three tenancy mechanisms: a Go query predicate applied
+by convention, per-module row-level security on 22 of 54 modules, and nothing on
+the rest. Only four modules used `FORCE ROW LEVEL SECURITY`, and the application
+connected as a superuser, which bypasses row-level security entirely. A
+forgotten `WHERE tenant_id = ?` leaked another tenant.
+
+== Decision
+
+Every tenant-scoped table has `ENABLE` and `FORCE ROW LEVEL SECURITY` with a
+policy matching `tenant_id` against a per-transaction setting, and the
+application connects as `platformkit_app`, a `NOSUPERUSER NOBYPASSRLS` role.
+The setting is placed by the transaction wrapper, never by callers, and
+`db.Tx[Tenant]` and `db.Tx[System]` are distinct types: a repository takes only
+`Tx[Tenant]`, and `Tx[System]` exists only through a kernel capability.
+
+== Consequences
+
+* A missing `WHERE tenant_id` returns no rows instead of another tenant's; a
+  query written in Go or SQL, today or after a refactor, cannot reach across.
+* Cross-tenant work asks the kernel for `Tx[System]`, so every crossing is
+  greppable.
+* Every transaction pays one round trip more: the settings are re-read before
+  commit and the transaction rolls back if either changed.
+* Tests run as the application role against a real Postgres; a superuser test
+  proves nothing.
+
+== Where it lives
+
+* {source-tree}/migrations/000001_tenancy.up.sql[`migrations/000001_tenancy.up.sql`] — the policy and the helper functions on every tenant table.
+* {source-tree}/kit/db/tx.go[`kit/db/tx.go`] — `Run`, `RunSystem`, the two transaction types and the re-read.
+* {source-tree}/scripts/check_gucs.sh[`scripts/check_gucs.sh`] — the build check that only `kit/db` writes a `platformkit.*` setting.
+
+== Evidence
+
+[source,sh]
+----
+go test ./kit/db -run 'TestTenantIsolationIsEnforcedByPostgres|TestOpenRefusesSuperuser'
+go test ./kit/db -run 'TestForceRowLevelSecurityIsWhatBindsTheOwner'
+go test ./kit/db -run 'TestATransactionThatRewritesItsOwnSettingsIsRolledBack'
+go test ./kit/db -run 'TestARestoringEscapeIsNotCaughtByTheReread'
+./scripts/check_gucs.sh
+----
+
+The record is precise about the limit: the settings are `USERSET`, so the
+database does not stop code that rewrites them. The type parameter stops it
+happening by accident, the build check stops it happening quietly, and the
+re-read catches an escape that leaves a setting set but not one that restores
+it, which `TestARestoringEscapeIsNotCaughtByTheReread` asserts on purpose.

@@ -1,0 +1,65 @@
+// Feature page template. Copy to docs/modules/ROOT/pages/features/<module>.adoc,
+// keep every heading in this order, fill each from the module's own files, and
+// state nothing those files do not. The map is authored from
+// ops/platformkit-record/architecture/templates/feature.architecture.json and
+// delivered as attachments/features/<module>.html. See AGENTS.md.
+= <Feature name, as the business says it>
+
+<One paragraph: what the capability is, who uses it, what it promises, in the
+words people use for it.> The module is
+{source-tree}/modules/<module>[`modules/<module>`]; this page states nothing
+that tree does not.
+
+include::partial$map-embed.adoc[]
+
+== The map
+
+[subs=attributes]
+++++
+<figure class="map-embed">
+<iframe src="{attachmentsdir}/features/<module>.html" title="<Feature name> — the module and its seams" loading="lazy"></iframe>
+<figcaption><a href="{attachmentsdir}/features/<module>.html" target="_blank" rel="noopener">Open the map full screen</a> · source <code>features/<module></code> in the record</figcaption>
+</figure>
+++++
+
+== What it promises
+
+[cols="1,3"]
+|===
+| Entity | `<Entity>` in {source-tree}/modules/<module>/contracts/<file>.go[`contracts/<file>.go`]: <the fields that carry meaning, the enums, what is immutable>.
+| Events | `<module>.<entity>.created`, `…`: <who publishes each and when>.
+| Permissions | `<token>` — <what it guards>; `<token>` — <what it guards>.
+| Service | `contracts.Service`: <methods>; the fake and the conformance suite live in `contracts/<module>test/`.
+|===
+
+== Routes and screens
+
+* `<METHOD> <path>` — <the five generated routes, then each command with the rule it applies>.
+* Screens: <the generated pages under `/admin/<module>/<entities>` and the navigation entry, or "none" and why>; hand-written pages: <none, or each with its reason>.
+
+== Events, jobs and subscriptions
+
+* Publishes: <events, from which operation>.
+* Jobs: <name, schedule, what it does per tenant>, or "none, written out as a decision".
+* Subscriptions: <event → handler>, or "none".
+
+== What it needs
+
+[cols="1,1,2"]
+|===
+| `Deps` field | Interface | Supplied by
+| `<Field>` | `<pkg>.<Interface>` | <which module's contracts or which kernel package, and what main passes>
+|===
+
+Configuration: <config.yaml keys the module reads, or "none">.
+
+== Who uses it
+
+* <module> — <which interface it takes and for what>.
+* The admin and the native shell reach it through `httpx.Resource`, not through `contracts/`.
+
+== Verification
+
+* `go test ./modules/<module>/...` — <what the conformance suite and the internal tests prove>.
+* <the browser journey that exercises it, or "no browser journey">.
+* Not proven: <what the tests do not exercise>.

@@ -1,0 +1,19 @@
+= Features
+
+A feature is a module: `contracts/`, `internal/` and `module.go`, composed in
+`main` with typed dependencies. Every feature page follows one template, kept
+in the documentation repository as `templates/feature.adoc`, with a map drawn
+from one shape, so that a reader who has seen one has seen them all: what it
+promises, its routes and screens, its events and jobs, what it needs, who uses
+it, and how it is verified. The map's source is kept in the programme record.
+
+[cols="1,3"]
+|===
+| Feature | In one line
+
+| xref:features/task.adoc[Tasks]
+| Work with a deadline, an owner and a status; a breached deadline is a recorded fact. The exemplar every module copied.
+|===
+
+The private catalog and client modules — `cart`, `payment`, `collectibles` —
+follow the same template in their own repositories and are not published here.

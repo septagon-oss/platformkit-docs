@@ -1,0 +1,12 @@
+// Shared by every page that embeds an architecture map: the page gives up its
+// contents column and its reading measure so a map gets the width it needs.
+++++
+<style>
+.doc { max-width: none; }
+aside.toc.sidebar { display: none; }
+.map-embed { margin: 0.75rem 0 2.25rem; }
+.map-embed iframe { display: block; width: 100%; height: 900px; border: 1px solid #d9d9d9; border-radius: 10px; background: #fff; }
+.map-embed figcaption { font-size: 0.85em; margin-top: 0.45rem; color: #5d5d5d; }
+@media (max-width: 1024px) { .map-embed iframe { height: 640px; } }
+</style>
+++++

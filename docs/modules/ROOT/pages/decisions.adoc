@@ -2,7 +2,10 @@
 
 The architecture decision records live in the repository at
 {source-tree}/docs/adr[`docs/adr`], one number each. This page is the index;
-the record is the text there.
+the record is the text there. Each decision also has a page here on one
+template (`templates/decision.adoc` in the documentation repository) with a
+map drawn from one shape: the decision, the mechanism that makes it true, the
+gate that keeps it true, and what was rejected.
 
 [cols="1,3,4"]
 |===
@@ -20,7 +23,7 @@ the record is the text there.
   checks the graph, and there is no dependency-injection container, registry or
   implication table.
 
-| {source-tree}/docs/adr/0003-tenancy-by-postgres.md[0003]
+| xref:decisions/0003-tenancy-by-postgres.adoc[0003]
 | Tenancy by Postgres
 | Tenant isolation is `FORCE ROW LEVEL SECURITY` set per transaction, with
   `db.Tx[db.Tenant]` and `db.Tx[db.System]` as distinct types.
