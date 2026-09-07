@@ -37,24 +37,57 @@ that is not a browser presents what it presents deliberately.
   which restates the web generator's rules — the first writable string is the
   row's name, `hide:list` hides a column, read-only fields never appear on a
   form, immutable fields are read-only on edit and absent on create, an enum is
-  a picker, a bool a switch; and a reducer for the session lifecycle. It
+  a picker, a bool a switch — and the value helpers an instant, a number and a
+  form's own refusals go through; and a reducer for the session lifecycle. It
   imports nothing from React or React Native and is tested in plain Node.
 
 | `src/effects/`
-| Fetch with the kept cookie — login, catalog, list, get, create, patch,
-  delete on the entry's own path — and the secure store.
+| Fetch with the kept cookie — login, catalog, list with sort and equality
+  filters, get, create, patch, delete on the entry's own path — and the secure
+  store.
+
+| `src/ui/`
+| The component library, props in and elements out, in one direction of
+  imports the lint enforces: `atoms/` (a word, a button, a field, a switch, a
+  choice that asks the platform's own chooser, an instant that asks its own
+  date and time controls), `molecules/` (a section that is inset-grouped on
+  iOS and a raised card on Android, a row, a detail row, a form field with its
+  refusal), `organisms/` (the generated list, detail, form, home and sign-in
+  as pure components), and `templates/` (the scroll, the large-title inset,
+  the safe area, the keyboard). `theme.tsx` follows the device's appearance;
+  its palette is generated from the public repository's design export, so a
+  colour is written once. A gallery shows every piece in both modes.
 
 | `src/screens/`
-| Sign-in, home, and the generated list, detail and form as components of
-  props.
+| Where an effect becomes a prop: one hook per generated screen owns its
+  requests, a generation guard against late responses and, for the form, an
+  explicit phase, so nothing saves before the row has loaded; one composition
+  per screen sets the native header — large titles, Edit, Cancel and Save, the
+  account menu — and renders the organism. Create and edit are a sheet.
 
 | `src/renderers.ts`, `src/shell.tsx`, `src/route.tsx`
-| The renderer-pack type, the composition root's context, and the one
-  component every resource route delegates to.
+| The renderer-pack type, the composition root's context (the session, the
+  catalog and a count of what this app wrote to each resource, so a list
+  re-reads only when it is stale), and the one component every resource route
+  delegates to.
 
 | `app/`
 | Expo Router files that compose and render nothing of their own.
 |===
+
+== Delivery
+
+A native fingerprint, committed beside the source, is the hash of everything a
+binary is built from; the repository's check fails when it is stale, so the
+question "does this change need a new binary" is a reviewed diff. One recipe
+builds the Android binary inside a pinned toolchain image, sized to fit a
+small job, and a workflow builds the verification binary whenever a native
+input changed. A tag builds the unsigned release outputs with their checksums;
+signing happens where the key is kept, never in a workflow, and the signed
+files become the release. Device journeys are Maestro flows kept in the
+repository and run on a developer's emulator; the check proves they name real
+elements and no more. iOS is built on a Mac by hand; there is no iOS build in
+any workflow.
 
 == Running it
 
@@ -67,7 +100,11 @@ EXPO_PUBLIC_API_URL=http://platformkit.localhost:8080 npm start
 
 == What is and is not proven
 
-`npm run check` is green and `expo export --platform web` produces a bundle.
-The shell has not yet run on a device or simulator, and cookie handling on iOS
-and Android against a live instance is unverified. Those are recorded as
-untested rather than assumed; the first device run will say.
+`npm run check` is green: the Node and component suites, the fingerprint and
+the flow check. The verification binary was built by the recipe under the
+same CPU and memory shape a small job has, installed on an Android 16
+emulator, and the four flows passed against the reference application:
+sign-in with the kept cookie, one task created, read, edited and deleted on
+the generated screens, sign-out, and the gallery in both modes. iOS has not
+run on a device; the native header, the sheet presentation and the compact
+date controls there are asserted by type and test only until it does.
