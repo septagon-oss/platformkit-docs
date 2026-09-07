@@ -80,14 +80,16 @@ that is not a browser presents what it presents deliberately.
 A native fingerprint, committed beside the source, is the hash of everything a
 binary is built from; the repository's check fails when it is stale, so the
 question "does this change need a new binary" is a reviewed diff. One recipe
-builds the Android binary inside a pinned toolchain image, sized to fit a
-small job, and a workflow builds the verification binary whenever a native
-input changed. A tag builds the unsigned release outputs with their checksums;
-signing happens where the key is kept, never in a workflow, and the signed
-files become the release. Device journeys are Maestro flows kept in the
-repository and run on a developer's emulator; the check proves they name real
-elements and no more. iOS is built on a Mac by hand; there is no iOS build in
-any workflow.
+builds the Android binary inside a pinned toolchain image, and the same recipe
+runs on a developer's machine, in a verification job and for a release, so
+there is one thing to keep working. The build is serial and modestly sized
+because a verification job is small; the repository records what it measured
+and what it therefore needs. A tag builds the unsigned release outputs with
+their checksums; signing happens where the key is kept, never in a workflow,
+and the signed files become the release. Device journeys are Maestro flows
+kept in the repository and run on a developer's emulator; the check proves
+they name real elements and no more. iOS is built on a Mac by hand; there is
+no iOS build in any workflow.
 
 == Running it
 
